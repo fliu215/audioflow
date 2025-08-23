@@ -22,8 +22,8 @@ def parse_yaml(config_yaml: str) -> dict:
 
 
 class LinearWarmUp:
-    r"""Linear learning rate warm up scheduler.
-    """
+    r"""Linear learning rate warm up scheduler."""
+
     def __init__(self, warm_up_steps: int) -> None:
         self.warm_up_steps = warm_up_steps
 
@@ -35,23 +35,18 @@ class LinearWarmUp:
 
 
 @torch.no_grad()
-def update_ema(ema_model: nn.Module, model: nn.Module, decay=0.999) -> None:
+def update_ema(ema: nn.Module, model: nn.Module, decay: float = 0.999) -> None:
+    """Update EMA model weights and buffers from model."""
 
-    # Moving average of parameters
-    ema_params = OrderedDict(ema_model.named_parameters())
-    model_params = OrderedDict(model.named_parameters())
+    # Parameters
+    for e, m in zip(ema.parameters(), model.parameters()):
+        e.mul_(decay).add_(m.data.float(), alpha=1 - decay)
 
-    for name, param in model_params.items():
-        ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
-
-    # Moving average of buffers. Patch for BN, etc
-    ema_buffers = OrderedDict(ema_model.named_buffers())
-    model_buffers = OrderedDict(model.named_buffers())
-
-    for name, buffer in model_buffers.items():
-        if buffer.dtype in [torch.long]:
+    # Buffers (BN running stats, etc)
+    for e, m in zip(ema.buffers(), model.buffers()):
+        if m.dtype in [torch.bool, torch.long]:
             continue
-        ema_buffers[name].mul_(decay).add_(buffer.data, alpha=1 - decay)
+        e.mul_(decay).add_(m.data.float(), alpha=1 - decay)
 
 
 def requires_grad(model: nn.Module, flag=True) -> None:
@@ -59,6 +54,60 @@ def requires_grad(model: nn.Module, flag=True) -> None:
         p.requires_grad = flag
 
 
+class CombinedModel(nn.Module):
+    def __init__(self, base: nn.Module, adaptor: nn.Module) -> None:
+        super().__init__()
+        self.base = base
+        self.adaptor = adaptor
+
+
+def load_levo_vae() -> nn.Module:
+
+    import json
+    from huggingface_hub import hf_hub_download
+    from stable_audio_tools.models.factory import create_model_from_config
+    from stable_audio_tools.models.autoencoders import AudioAutoencoder
+
+    config_path = hf_hub_download(
+        repo_id="tencent/SongGeneration", 
+        filename="ckpt/vae/stable_audio_1920_vae.json"
+    )
+
+    model_path = hf_hub_download(
+        repo_id="tencent/SongGeneration", 
+        filename="ckpt/vae/autoencoder_music_1320k.ckpt"
+    )
+    
+    with open(config_path, "r") as f:
+        model_config = json.load(f)
+
+    model = create_model_from_config(model_config)
+    state_dict = torch.load(model_path, map_location="cpu")["state_dict"]
+    model.load_state_dict(state_dict)
+
+    vae_config = {
+        "fps": 25,
+        "sample_rate": model_config["sample_rate"]
+    }
+
+    return model, vae_config
+
+
+def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
+
+    if audio.ndim == 2:
+        audio = np.mean(audio, axis=0)
+
+    return np.log10(librosa.feature.melspectrogram(
+        y=audio, 
+        sr=sr, 
+        n_fft=2048, 
+        hop_length=round(sr * 0.01), 
+        n_mels=128
+    )).T  # (t, f)
+
+
+'''
 def fix_length(x: Tensor, size: int) -> Tensor:
 
     if x.shape[-1] >= size:
@@ -97,3 +146,4 @@ class Logmel:
         )).T
 
         return logmel
+'''

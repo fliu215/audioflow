@@ -1,50 +1,46 @@
 ---
-sample_rate: 44100
-clip_duration: 2.
+clip_duration: 10.
 
 train_datasets:
-    MUSDB18HQ:
-        root: "./datasets/musdb18hq"
+    MUSDB18HqVAE:
+        root: "./datasets/musdb18hq_vae"
         split: "train"
-        time_align: strict
 
 test_datasets:
-    MUSDB18HQ:
-        root: "./datasets/musdb18hq"
+    MUSDB18HqVAE:
+        root: "./datasets/musdb18hq_vae"
         split: "test"
-        time_align: strict
-
-sampler: InfiniteSampler
+        
+sampler: RepeatShuffleSampler
 
 data_transform: 
-    name: MSS_Mel
+    name: MSS
+    target_stem: vocals
 
-model:
-    name: BSRoformerMel
-    y_dim:  # Leave blank if None
-    c_dim:  # Leave blank if None
-    ct_dim:  # Leave blank if None
-    ctf_dim: 2
-    cx_dim:  # Leave blank if None
+base:
+    name: Transformer1D
+    in_dim: 64
+    patch_size: 1
+    dim: 768
+    num_layers: 12
+    num_heads: 12
+    rope_len: 8192
 
-    in_channels: 2
-    patch_size: [4, 4]
-    n_layer: 12
-    n_head: 12
-    n_embd: 384
+adaptor:
+    name: VAEEncoder
+    dim: 64
 
 train:
     device: cuda
     num_workers: 16
-    precision: "no"  # "no" (fp32) | "fp8" | "fp16" | bf16 
-    loss: l1
+    precision: "no"  # "no" (fp32) | "bf16"
     optimizer: AdamW
     lr: 1e-4
     warm_up_steps: 1000  # Leave blank if no warm up is used
-    batch_size_per_device: 4
-    test_every_n_steps: 2000
-    save_every_n_steps: 20000
-    training_steps: 200000
+    batch_size_per_device: 16
+    test_every_n_steps: 10000
+    save_every_n_steps: 50000
+    training_steps: 500000
     resume_ckpt_path:  # Leave blank if train from scratch
 
-valid_audios: 2
+valid_audios: 10

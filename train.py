@@ -11,13 +11,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchdiffeq
+import wandb
+from audio_flow.utils import (CombinedModel, LinearWarmUp, parse_yaml,
+                              requires_grad, update_ema, logmel)
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data._utils.collate import default_collate
 from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
 from tqdm import tqdm
-
-import wandb
-from audio_flow.utils import LinearWarmUp, Logmel, parse_yaml, requires_grad, update_ema
 
 
 def train(args) -> None:
@@ -31,6 +31,7 @@ def train(args) -> None:
     # Configs
     configs = parse_yaml(config_path)
     device = configs["train"]["device"]
+    ckpt_path = configs["train"]["resume_ckpt_path"]
 
     # Checkpoints directory
     config_name = Path(config_path).stem
@@ -59,10 +60,19 @@ def train(args) -> None:
     fm = ConditionalFlowMatcher(sigma=0.)
 
     # Model
-    model = get_model(
+    base = get_base(
         configs=configs, 
-        ckpt_path=configs["train"]["resume_ckpt_path"]
     ).to(device)
+
+    adaptor = get_adaptor(
+        configs=configs,
+    ).to(device)
+
+    model = CombinedModel(base, adaptor)
+
+    if ckpt_path:
+        ckpt = torch.load(ckpt_path)
+        model.load_state_dict(ckpt, strict=True)
 
     # EMA (optional)
     ema = deepcopy(model).to(device)
@@ -75,7 +85,7 @@ def train(args) -> None:
         configs=configs, 
         params=model.parameters()
     )
-
+    
     # Logger
     if wandb_log:
         wandb.init(project="audio_flow", name=f"{filename}_{config_name}")
@@ -84,18 +94,19 @@ def train(args) -> None:
 
         # ------ 1. Data preparation ------
         # 1.1 Transform data into latent representations and conditions
-        target, cond_dict, _ = data_transform(data)
+        x_real, cond_dict = data_transform(data)
 
         # 1.2 Noise
-        noise = torch.randn_like(target)
+        noise = torch.randn_like(x_real)
 
         # 1.3 Get input and velocity
-        t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=target)
+        t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
 
         # ------ 2. Training ------
         # 2.1 Forward
         model.train()
-        vt = model(t=t, x=xt, cond_dict=cond_dict)
+        emb_dict = model.adaptor(cond_dict)
+        vt = model.base(t=t, x=xt, emb_dict=emb_dict)
 
         # 2.2 Loss
         loss = torch.mean((vt - ut) ** 2)
@@ -121,18 +132,9 @@ def train(args) -> None:
                 validate(
                     configs=configs,
                     data_transform=data_transform,
-                    model=model,
-                    split=split,
-                    out_dir=Path("results", filename, config_name, f"steps={step}")
-                )
-
-            for split in ["train", "test"]:
-                validate(
-                    configs=configs,
-                    data_transform=data_transform,
                     model=ema,
                     split=split,
-                    out_dir=Path("results", filename, config_name, f"steps={step}_ema")
+                    out_dir=Path("./results", filename, config_name, f"steps={step}_ema")
                 )
 
             if wandb_log:
@@ -145,67 +147,16 @@ def train(args) -> None:
         
         # 3.2 Save model
         if step % configs["train"]["save_every_n_steps"] == 0:
-            
-            ckpt_path = Path(ckpts_dir, "step={}.pth".format(step))
-            torch.save(model.state_dict(), ckpt_path)
-            print("Save model to {}".format(ckpt_path))
-
-            ckpt_path = Path(ckpts_dir, "step={}_ema.pth".format(step))
+           
+            ckpt_path = Path(ckpts_dir, f"step={step}_ema.pt")
             torch.save(ema.state_dict(), ckpt_path)
-            print("Save model to {}".format(ckpt_path))
+            print(f"Save model to {ckpt_path}")
 
         if step == configs["train"]["training_steps"]:
             break
 
         step += 1
         
-
-def get_data_transform(configs: dict):
-    r"""Transform data into latent representations and conditions."""
-
-    name = configs["data_transform"]["name"]
-
-    if name == "Text2Music_Mel":
-        from audio_flow.data_transforms.text2music import Text2Music_Mel
-        return Text2Music_Mel()
-
-    elif name == "Codec2Audio_Mel":
-        from audio_flow.data_transforms.codec2audio import Codec2Audio_Mel
-        return Codec2Audio_Mel()
-
-    elif name == "SuperResolution_Mel":
-        from audio_flow.data_transforms.superresolution import \
-            SuperResolution_Mel
-        return SuperResolution_Mel(
-            sr=configs["sample_rate"], 
-            distorted_sr=configs["data_transform"]["distorted_sample_rate"]
-        )
-
-    elif name == "Mono2Stereo_Mel":
-        from audio_flow.data_transforms.mono2stereo import Mono2Stereo_Mel
-        return Mono2Stereo_Mel()
-
-    elif name == "Midi2Audio_Mel":
-        from audio_flow.data_transforms.midi2audio import Midi2Audio_Mel
-        return Midi2Audio_Mel()
-
-    elif name == "MSS_Mel":
-        from audio_flow.data_transforms.mss import MSS_Mel
-        return MSS_Mel()
-
-    elif name == "Vocal2Music_Mel":
-        from audio_flow.data_transforms.vocal2music import Vocal2Music_Mel
-        return Vocal2Music_Mel()
-
-    elif name == "Image2Audio_Mel":
-        pass
-
-    elif name == "Phase_STFT":
-        pass
-
-    else:
-        raise ValueError(name)
-
 
 def get_dataset(
     configs: dict, 
@@ -214,82 +165,29 @@ def get_dataset(
 ) -> Dataset:
     r"""Get datasets."""
 
-    sr = configs["sample_rate"]
-    clip_duration = configs["clip_duration"]
     ds = f"{split}_datasets"
 
     for name in configs[ds].keys():
 
-        if name == "GTZAN":
-
-            from audidata.io.crops import RandomCrop, StartCrop
-            from audio_flow.datasets.gtzan import GTZAN
-            
-            if mode == "train":
-                crop = RandomCrop(clip_duration=clip_duration)
-            elif mode == "test":
-                crop = StartCrop(start=0., clip_duration=clip_duration)
-
-            dataset = GTZAN(
+        if name == "GtzanVAE":
+            from audio_flow.datasets.gtzan_vae import GtzanVAE
+            return GtzanVAE(
                 root=configs[ds][name]["root"],
                 split=configs[ds][name]["split"],
                 test_fold=0,
-                sr=configs["sample_rate"],
-                crop=RandomCrop(clip_duration=configs["clip_duration"])
+                duration=configs["clip_duration"]
             )
-            return dataset
-    
-        elif name == "MUSDB18HQ":
 
-            from audidata.io.crops import RandomCrop, StartCrop
-            from audio_flow.datasets.musdb18hq import MUSDB18HQ
+        elif name == "MUSDB18HqVAE":
+            from audio_flow.datasets.musdb18hq_vae import MUSDB18HqVAE
+            return MUSDB18HqVAE(
+                root=configs[ds][name]["root"],
+                split=configs[ds][name]["split"],
+                duration=configs["clip_duration"]
+            )
             
-            if mode == "train":
-                crop = RandomCrop(clip_duration=clip_duration)
-            elif mode == "test":
-                crop = StartCrop(start=60., clip_duration=clip_duration)
-
-            dataset = MUSDB18HQ(
-                root=configs[ds][name]["root"],
-                split=configs[ds][name]["split"],
-                sr=sr,
-                crop=crop,
-                time_align=configs[ds][name]["time_align"],
-                mixture_transform=None,
-                group_transform=None,
-                stem_transform=None
-            )
-            return dataset
-
-        elif name == "MAESTRO":
-
-            from audidata.io.crops import RandomCrop, StartCrop
-            from audidata.transforms.midi import PianoRoll
-            from audio_flow.datasets.maestro import MAESTRO
-            from audio_flow.update_collate import default_collate_fn_map  # Change global variable
-
-            if mode == "train":
-                crop = RandomCrop(clip_duration=clip_duration)
-            elif mode == "test":
-                crop = StartCrop(start=60., clip_duration=clip_duration)
-
-            dataset = MAESTRO(
-                root=configs[ds][name]["root"],
-                split=configs[ds][name]["split"],
-                sr=sr,
-                crop=crop,
-                transform=None,
-                load_target=True,
-                extend_pedal=True,
-                target_transform=PianoRoll(fps=100, pitches_num=128),
-            )
-            return dataset
-
         else:
             raise ValueError(name)
-
-    else:
-        raise ValueError("Do not support multiple datasets.")
 
 
 def get_sampler(configs: dict, dataset: Dataset) -> Iterable:
@@ -297,37 +195,69 @@ def get_sampler(configs: dict, dataset: Dataset) -> Iterable:
 
     name = configs["sampler"]
 
-    if name == "InfiniteSampler":
-        from audio_flow.samplers.infinite_sampler import InfiniteSampler
-        return InfiniteSampler(dataset)
+    if name == "RepeatShuffleSampler":
+        from audio_flow.samplers.sampler import RepeatShuffleSampler
+        return RepeatShuffleSampler(dataset)
 
     else:
         raise ValueError(name)
 
 
-def get_model(
+def get_data_transform(configs: dict):
+    r"""Transform data into latent representations and conditions."""
+
+    name = configs["data_transform"]["name"]
+
+    if name == "Label2MusicVAE":
+        from audio_flow.data_transforms.label2music_vae import Label2MusicVAE
+        return Label2MusicVAE()
+
+    elif name == "MSS":
+        from audio_flow.data_transforms.mss_vae import MSSVAE
+        return MSSVAE(target_stem=configs["data_transform"]["target_stem"])
+
+    else:
+        raise ValueError(name)
+
+
+def get_base(
     configs: dict, 
-    ckpt_path: str
 ) -> nn.Module:
-    r"""Initialize model."""
+    r"""Initialize base model."""
 
-    name = configs["model"]["name"]
+    name = configs["base"]["name"]
 
-    if name == "BSRoformerMel": 
-
-        from audio_flow.models.bsroformer_mel import BSRoformerMel, Config
-
-        config = Config(**configs["model"])
-        model = BSRoformerMel(config)
+    if name == "Transformer1D":
+        from audio_flow.models.transformer1d import Transformer1D
+        return Transformer1D(**configs["base"])
 
     else:
         raise ValueError(name)    
 
-    if ckpt_path:
-        ckpt = torch.load(ckpt_path)
-        model.load_state_dict(ckpt)
 
-    return model
+def get_adaptor(
+    configs: dict, 
+):
+    r"""Initialize adaptor."""
+
+    name = configs["adaptor"]["name"]
+
+    if name == "OnehotEncoder":
+        from audio_flow.adaptors.onehot import OnehotEncoder
+        return OnehotEncoder(
+            num_classes=configs["adaptor"]["num_classes"], 
+            dim=configs["base"]["dim"]
+        )
+
+    if name == "VAEEncoder":
+        from audio_flow.adaptors.vae import VAEEncoder
+        return VAEEncoder(
+            in_channels=configs["adaptor"]["dim"], 
+            dim=configs["base"]["dim"]
+        )
+
+    else:
+        raise ValueError(name)    
 
 
 def get_optimizer_and_scheduler(
@@ -364,10 +294,11 @@ def validate(
     device = next(model.parameters()).device
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    sr = configs["sample_rate"]
     valid_audios = configs["valid_audios"]
+    sr = data_transform.sr
 
     dataset = get_dataset(configs, split=split, mode="test")
+    dataset[0]
 
     # Evaluate only part of data
     if valid_audios:
@@ -375,7 +306,7 @@ def validate(
     else:
         skip_n = 1
 
-    for idx in range(0, len(dataset), skip_n):
+    for i, idx in enumerate(range(0, len(dataset), skip_n)):
 
         # ------ 1. Data preparation ------
         # 1.1 Get Data
@@ -383,17 +314,18 @@ def validate(
         data = default_collate([data])
         
         # 1.2 Transform data into latent representations and conditions
-        target, cond_dict, cond_sources = data_transform(data)
+        x_real, cond_dict = data_transform(data)
 
         # 1.3 Noise
-        noise = torch.randn_like(target)
+        noise = torch.randn_like(x_real)
 
         # ------ 2. Forward with ODE ------
         # 2.1 Iteratively forward
         with torch.no_grad():
             model.eval()
+            emb_dict = model.adaptor(cond_dict)
             traj = torchdiffeq.odeint(
-                lambda t, x: model.forward(t, x, cond_dict),
+                lambda t, x: model.base(t, x, emb_dict),
                 y0=noise,
                 t=torch.linspace(0, 1, 2, device=device),
                 atol=1e-4,
@@ -401,59 +333,39 @@ def validate(
                 method="dopri5",
             )
 
-        est_target = traj[-1]  # (b, c, t, f)
+        x_gen = traj[-1]  # (b, d, t)
 
         # 2.2 Latent to audio
-        est_audio = data_transform.latent_to_audio(est_target).data.cpu().numpy()  # (b, c, l)
-        gt_audio = data_transform.latent_to_audio(target).data.cpu().numpy()  # (b, c, l)
+        gen_audio = data_transform.latent_to_audio(x_gen).data.cpu().numpy()[0]  # (c, l)
+        gt_audio = data_transform.latent_to_audio(x_real).data.cpu().numpy()[0]  # (c, l)
 
         # ------ 3. Plot and Visualization ------
-        # 3.1 Plot logmel spectrogram
-        logmel_extractor = Logmel(sr=sr)
-        est_logmel = logmel_extractor(est_audio[0, 0])
-        gt_logmel = logmel_extractor(gt_audio[0, 0])
+        gen_logmel = logmel(gen_audio, sr)
+        gt_logmel = logmel(gt_audio, sr)
 
-        if "caption" in cond_sources.keys():
-            caption = cond_sources["caption"][0]
-        else:
-            caption = ""
-
-        print(f"caption: {caption}")
-
-        if "audio" in cond_sources.keys():
-            cond_audio = cond_sources["audio"].data.cpu().numpy()  # (b, c, l)
-            cond_logmel = logmel_extractor(cond_audio[0, 0])
-
-        fig, axs = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+        fig, axs = plt.subplots(3, 1, figsize=(10, 10))
         vmin, vmax = -10, 5
-        if "audio" in cond_sources.keys():
-            axs[0].matshow(cond_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
-        if "image" in cond_sources.keys():
-            image = cond_sources["image"].data.cpu().numpy()[0]
-            axs[0].matshow(image.T, origin='lower', aspect='auto', cmap='jet')
-        axs[1].matshow(est_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+        axs[1].matshow(gen_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[2].matshow(gt_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
-        axs[0].set_title("Cond TF (if there are)")
-        axs[1].set_title("Estimation")
+        axs[0].set_title("Input (if there are)")
+        axs[1].set_title("Generation")
         axs[2].set_title("Ground truth")
         axs[2].xaxis.tick_bottom()
-        
-        out_path = Path(out_dir, f"{split}_{idx}_{caption}.png")
+
+        caption = cond_dict.get("caption", [""])[0]
+        print(f"caption: {caption}")        
+
+        out_path = Path(out_dir, f"{split}_{i}_{caption}.png")
         plt.savefig(out_path)
         print(f"Write out to {out_path}")
 
         # 3.2 Save audio
-        if "audio" in cond_sources.keys():
-            out_path = Path(out_dir, f"{split}_{idx}_cond_{caption}.wav")
-            soundfile.write(file=out_path, data=cond_audio[0].T, samplerate=sr)
-            print(f"Write out to {out_path}")
-
-        out_path = Path(out_dir, f"{split}_{idx}_est_{caption}.wav")
-        soundfile.write(file=out_path, data=est_audio[0].T, samplerate=sr)
+        out_path = Path(out_dir, f"{split}_{i}_gen_{caption}.wav")
+        soundfile.write(file=out_path, data=gen_audio.T, samplerate=sr)
         print(f"Write out to {out_path}")
 
-        out_path = Path(out_dir, f"{split}_{idx}_gt_{caption}.wav")
-        soundfile.write(file=out_path, data=gt_audio[0].T, samplerate=sr)
+        out_path = Path(out_dir, f"{split}_{i}_gt_{caption}.wav")
+        soundfile.write(file=out_path, data=gt_audio.T, samplerate=sr)
         print(f"Write out to {out_path}")
 
 
