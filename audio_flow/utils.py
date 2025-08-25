@@ -61,6 +61,33 @@ class CombinedModel(nn.Module):
         self.adaptor = adaptor
 
 
+def forward_in_chunks(model: nn.Module, audio: np.array, clip_samples: int) -> np.array:
+
+    device = next(model.parameters()).device
+    latents = []
+    i = 0
+    skip_samples = 10000
+
+    while i < audio.shape[-1]:
+
+        if audio.shape[-1] - i < skip_samples:
+            break
+        
+        x = Tensor(audio[None, :, i : i + clip_samples]).to(device)
+
+        with torch.no_grad():
+            model.eval()
+            latent = model(x)[0].data.cpu().numpy()  # (d, t)
+
+        latents.append(latent)
+        i += clip_samples
+
+    latents = np.concatenate(latents, axis=-1)
+
+    return latents
+
+
+'''
 def load_levo_vae() -> nn.Module:
 
     import json
@@ -91,7 +118,7 @@ def load_levo_vae() -> nn.Module:
     }
 
     return model, vae_config
-
+'''
 
 def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
 

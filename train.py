@@ -186,6 +186,14 @@ def get_dataset(
                 duration=configs["clip_duration"]
             )
             
+        elif name == "MUSDB18HqMono2StereoVAE":
+            from audio_flow.datasets.musdb18hq_mono2stereo_vae import MUSDB18HqMono2StereoVAE
+            return MUSDB18HqMono2StereoVAE(
+                root=configs[ds][name]["root"],
+                split=configs[ds][name]["split"],
+                duration=configs["clip_duration"]
+            )
+            
         else:
             raise ValueError(name)
 
@@ -209,12 +217,16 @@ def get_data_transform(configs: dict):
     name = configs["data_transform"]["name"]
 
     if name == "Label2MusicVAE":
-        from audio_flow.data_transforms.label2music_vae import Label2MusicVAE
+        from audio_flow.data_transforms.label2music import Label2MusicVAE
         return Label2MusicVAE()
 
     elif name == "MSS":
-        from audio_flow.data_transforms.mss_vae import MSSVAE
+        from audio_flow.data_transforms.mss import MSSVAE
         return MSSVAE(target_stem=configs["data_transform"]["target_stem"])
+
+    elif name == "Mono2StereoVAE":
+        from audio_flow.data_transforms.mono2stereo import Mono2StereoVAE
+        return Mono2StereoVAE()
 
     else:
         raise ValueError(name)
@@ -336,15 +348,24 @@ def validate(
         x_gen = traj[-1]  # (b, d, t)
 
         # 2.2 Latent to audio
+        if "ct" in cond_dict and cond_dict["ct"].shape == x_real.shape:
+            in_audio = data_transform.latent_to_audio(cond_dict["ct"]).data.cpu().numpy()[0]  # (c, l)
+        else:
+            in_audio = None
+
         gen_audio = data_transform.latent_to_audio(x_gen).data.cpu().numpy()[0]  # (c, l)
         gt_audio = data_transform.latent_to_audio(x_real).data.cpu().numpy()[0]  # (c, l)
 
         # ------ 3. Plot and Visualization ------
+        if in_audio is not None:
+            in_logmel = logmel(in_audio, sr)
         gen_logmel = logmel(gen_audio, sr)
         gt_logmel = logmel(gt_audio, sr)
 
         fig, axs = plt.subplots(3, 1, figsize=(10, 10))
         vmin, vmax = -10, 5
+        if in_audio is not None:
+            axs[0].matshow(in_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[1].matshow(gen_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[2].matshow(gt_logmel.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[0].set_title("Input (if there are)")
@@ -352,19 +373,26 @@ def validate(
         axs[2].set_title("Ground truth")
         axs[2].xaxis.tick_bottom()
 
-        caption = cond_dict.get("caption", [""])[0]
-        print(f"caption: {caption}")        
+        if "caption" in cond_dict:
+            caption = "_{}".format(cond_dict["caption"][0])
+        else:
+            caption = ""
 
-        out_path = Path(out_dir, f"{split}_{i}_{caption}.png")
+        out_path = Path(out_dir, f"{split}_{i}{caption}.png")
         plt.savefig(out_path)
         print(f"Write out to {out_path}")
 
         # 3.2 Save audio
-        out_path = Path(out_dir, f"{split}_{i}_gen_{caption}.wav")
+        if in_audio is not None:
+            out_path = Path(out_dir, f"{split}_{i}{caption}_in.wav")
+            soundfile.write(file=out_path, data=in_audio.T, samplerate=sr)
+            print(f"Write out to {out_path}")
+
+        out_path = Path(out_dir, f"{split}_{i}{caption}_gen.wav")
         soundfile.write(file=out_path, data=gen_audio.T, samplerate=sr)
         print(f"Write out to {out_path}")
 
-        out_path = Path(out_dir, f"{split}_{i}_gt_{caption}.wav")
+        out_path = Path(out_dir, f"{split}_{i}{caption}_gt.wav")
         soundfile.write(file=out_path, data=gt_audio.T, samplerate=sr)
         print(f"Write out to {out_path}")
 

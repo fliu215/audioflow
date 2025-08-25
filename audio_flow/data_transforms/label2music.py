@@ -5,17 +5,17 @@ from audidata.datasets import GTZAN
 from torch import Tensor
 from einops import rearrange
 
-from audio_flow.utils import load_levo_vae
+from audio_flow.vae.levo import LevoVAE
 
 
 class Label2MusicVAE(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.vae, vae_config = load_levo_vae()
-        self.sr = vae_config["sample_rate"]
+        self.vae = LevoVAE()
+        self.sr = self.vae.sr
 
-    def __call__(self, data: dict) -> tuple[Tensor, dict, dict]:
+    def audio_to_latent(self, data: dict) -> tuple[Tensor, dict]:
         r"""Transform data into latent representations and conditions.
 
         b: batch_size
@@ -51,5 +51,8 @@ class Label2MusicVAE(nn.Module):
         Outputs:
             y: (b, c, l)
         """
-        x = self.vae.decode_audio(x)
+        x = self.vae.decode(x)
         return x
+
+    def __call__(self, data: dict) -> tuple[Tensor, dict]:
+        return self.audio_to_latent(data)

@@ -17,36 +17,7 @@ from typing_extensions import Literal
 
 
 class MUSDB18HqVAE(Dataset):
-    r"""MUSDB18HQ [1] is a dataset containing 100 training audio files and 50 
-    testing audio files, each with vocals, bass, drums, and other stems. The 
-    total duration is 9.8 hours. The audio is stereo and sampled at 48,000 Hz. 
-    After decompression, the dataset size is 30 GB.
-
-    [1] https://zenodo.org/records/3338373
-
-    The dataset looks like:
-
-        musdb18hq (30 GB)
-        ├── train (100 files)
-        │   ├── A Classic Education - NightOwl
-        │   │   ├── bass.wav
-        │   │   ├── drums.wav
-        │   │   ├── mixture.wav
-        │   │   ├── other.wav
-        │   │   └── vocals.wav
-        │   ... 
-        │   └── ...
-        └── test (50 files)
-            ├── Al James - Schoolboy Facination
-            │   ├── bass.wav
-            │   ├── drums.wav
-            │   ├── mixture.wav
-            │   ├── other.wav
-            │   └── vocals.wav
-            ... 
-            └── ...
-    """
-
+   
     def __init__(
         self,
         root: str, 
@@ -54,21 +25,13 @@ class MUSDB18HqVAE(Dataset):
         duration: float = 10.,
         target_stem: str = "vocals",
     ) -> None:
-        r"""
-        time_align: str. "strict" indicates all stems are aligned (from the 
-            same song and have the same start time). "group" indictates 
-            target stems / background stems are aligned. "random" indicates 
-            all stems are from different songs with different start time.
-        """
 
         self.root = root
         self.split = split
         self.duration = duration
         self.target_stem = target_stem
 
-        self.latents_dir = Path(self.root, self.split)
-        self.names = sorted(os.listdir(self.latents_dir))
-        self.latents_num = len(self.names)
+        self.meta_dict = self.load_meta()
 
     def __getitem__(
         self, 
@@ -84,17 +47,29 @@ class MUSDB18HqVAE(Dataset):
             "dataset_name": "MUSDB18HqVAE",
         }
 
-        # mixture_name = "{}.h5".format(self.names[index])
-        mixture_path = Path(self.latents_dir, self.names[index], "mixture.h5")
-        target_path = Path(self.latents_dir, self.names[index], f"{self.target_stem}.h5")
-        
+        mixture_path = self.meta_dict["mixture_path"][index]
+        target_path = self.meta_dict["target_path"][index]
+
         data = self.load_latent_data(mixture_path, target_path)
         full_data.update(data)
-        
+
         return full_data
 
     def __len__(self) -> int:
-        return self.latents_num
+        return len(self.meta_dict["mixture_path"])
+
+    def load_meta(self):
+
+        mixture_paths = sorted(list(Path(self.root, self.split).rglob("*mixture_*")))
+        mixture_paths = [str(s) for s in mixture_paths]
+        target_paths = [s.replace("mixture_", "{}_".format(self.target_stem)) for s in mixture_paths]
+
+        meta_dict = {
+            "mixture_path": mixture_paths,
+            "target_path": target_paths
+        }
+        
+        return meta_dict
 
     def load_latent_data(self, mixture_path: str, target_path) -> dict:
 
