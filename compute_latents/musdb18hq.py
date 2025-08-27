@@ -133,10 +133,11 @@ def compute_dac_stereo_vae(args) -> None:
 
     device = "cuda"
     clip_duration = 60.
+    n_quantizers = 2
 
     # Load VAE
     vae = LevoVAE().to(device)
-    dac = DAC(n_quantizers=2).to(device)
+    dac = DAC(n_quantizers=n_quantizers).to(device)
     
     clip_samples = int(clip_duration * vae.sr)
 
@@ -166,9 +167,9 @@ def compute_dac_stereo_vae(args) -> None:
 
                     t1 = time.time()
                     vae_latents = forward_in_chunks(vae, stereo, clip_samples)
-                    dac_latents = forward_in_chunks(dac, dac_audio, clip_samples)
+                    dac_codes = forward_in_chunks(dac, dac_audio, clip_samples)
                     t = time.time() - t1
-
+                    
                     sub_dir = Path(out_dir, split, name)
                     sub_dir.mkdir(parents=True, exist_ok=True)
 
@@ -180,7 +181,7 @@ def compute_dac_stereo_vae(args) -> None:
                         hf.attrs.create("fps", data=vae.fps, dtype=float)
 
                     with h5py.File(dac_out_path, 'w') as hf:
-                        hf.create_dataset("latent", data=dac_latents, dtype=np.float32)
+                        hf.create_dataset("code", data=dac_codes, dtype=int)
                         hf.attrs.create("fps", data=dac.fps, dtype=float)
                     
                     print(f"Write out to {vae_out_path}")
@@ -235,10 +236,10 @@ def compute_8khz_44khz_vae(args) -> None:
                     sub_dir = Path(out_dir, split, name)
                     sub_dir.mkdir(parents=True, exist_ok=True)
 
-                    stereo_out_path = Path(sub_dir, f"{stem}_{i:03d}_stereo_vae.h5")
+                    highres_out_path = Path(sub_dir, f"{stem}_{i:03d}_highres_vae.h5")
                     lowres_out_path = Path(sub_dir, f"{stem}_{i:03d}_lowres_vae.h5")
                     
-                    with h5py.File(stereo_out_path, 'w') as hf:
+                    with h5py.File(highres_out_path, 'w') as hf:
                         hf.create_dataset("latent", data=stereo_latents, dtype=np.float32)
                         hf.attrs.create("fps", data=vae.fps, dtype=float)
 
@@ -246,7 +247,7 @@ def compute_8khz_44khz_vae(args) -> None:
                         hf.create_dataset("latent", data=lowres_latents, dtype=np.float32)
                         hf.attrs.create("fps", data=vae.fps, dtype=float)
                     
-                    print(f"Write out to {stereo_out_path}")
+                    print(f"Write out to {highres_out_path}")
                     print(f"Write out to {lowres_out_path}")
                     print(f"time: {t:.2f} s")
 

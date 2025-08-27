@@ -2,19 +2,19 @@
 clip_duration: 10.
 
 train_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    MUSDB18HqLowres2HighresVAE:
+        root: "./datasets/musdb18hq_8k_44k_vae"
         split: "train"
 
 test_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    MUSDB18HqLowres2HighresVAE:
+        root: "./datasets/musdb18hq_8k_44k_vae"
         split: "test"
         
 sampler: RepeatShuffleSampler
 
 data_transform: 
-    name: Mono2StereoVAE
+    name: SuperResolutionVAE
 
 base:
     name: Transformer1D
@@ -31,7 +31,7 @@ adaptor:
 
 train:
     device: cuda
-    num_workers: 16
+    num_workers: 0
     precision: "no"  # "no" (fp32) | "bf16"
     optimizer: AdamW
     lr: 1e-4

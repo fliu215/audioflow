@@ -81,6 +81,9 @@ class Transformer1D(nn.Module):
         if ct is not None: 
             e += ct[:, :, :]
 
+        if cx is not None:
+            cx = rearrange(cx, 'b d t -> b t d')
+
         x = rearrange(x, 'b d t -> b t d')
         e = rearrange(e, 'b d t -> b t d')
 

@@ -2,19 +2,19 @@
 clip_duration: 10.
 
 train_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    MUSDB18HqDac2StereoVAE:
+        root: "./datasets/musdb18hq_dac_stereo_vae"
         split: "train"
 
 test_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    MUSDB18HqDac2StereoVAE:
+        root: "./datasets/musdb18hq_dac_stereo_vae"
         split: "test"
         
 sampler: RepeatShuffleSampler
 
 data_transform: 
-    name: Mono2StereoVAE
+    name: Dac2StereoVAE
 
 base:
     name: Transformer1D
@@ -27,7 +27,7 @@ base:
 
 adaptor:
     name: LatentEncoder
-    dim: 64
+    dim: 5120
 
 train:
     device: cuda

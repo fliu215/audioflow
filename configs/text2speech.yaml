@@ -2,19 +2,19 @@
 clip_duration: 10.
 
 train_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    LJSpeechVAE:
+        root: "./datasets/ljspeech_vae"
         split: "train"
-
+        
 test_datasets:
-    MUSDB18HqMono2StereoVAE:
-        root: "./datasets/musdb18hq_mono_stereo_vae"
+    LJSpeechVAE:
+        root: "./datasets/ljspeech_vae"
         split: "test"
         
 sampler: RepeatShuffleSampler
 
 data_transform: 
-    name: Mono2StereoVAE
+    name: Text2SpeechVAE
 
 base:
     name: Transformer1D
@@ -26,8 +26,8 @@ base:
     rope_len: 8192
 
 adaptor:
-    name: LatentEncoder
-    dim: 64
+    name: OnehotEncoder
+    num_classes: 30522  # Bert vocabulary
 
 train:
     device: cuda

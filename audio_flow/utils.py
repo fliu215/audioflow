@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import yaml
 from torch import Tensor
+from einops import rearrange
 
 
 def parse_yaml(config_yaml: str) -> dict:
@@ -87,38 +88,49 @@ def forward_in_chunks(model: nn.Module, audio: np.array, clip_samples: int) -> n
     return latents
 
 
-'''
-def load_levo_vae() -> nn.Module:
+def align_temporal_features(
+    input: Tensor, 
+    target: Tensor, 
+    input_fps: float, 
+    target_fps: float
+) -> Tensor:
+    r"""Align or stack the input with the target along the temporal axis.
 
-    import json
-    from huggingface_hub import hf_hub_download
-    from stable_audio_tools.models.factory import create_model_from_config
-    from stable_audio_tools.models.autoencoders import AudioAutoencoder
+    Args:
+        input: (any, t1)
+        target: (any, t2)
+        input_fps: float
+        target_fps: float
 
-    config_path = hf_hub_download(
-        repo_id="tencent/SongGeneration", 
-        filename="ckpt/vae/stable_audio_1920_vae.json"
-    )
+    Outputs:
+        output: (any, t2) if t1 ≤ t2
+                (any, t2*w) if t1 > t2
+    """
 
-    model_path = hf_hub_download(
-        repo_id="tencent/SongGeneration", 
-        filename="ckpt/vae/autoencoder_music_1320k.ckpt"
-    )
-    
-    with open(config_path, "r") as f:
-        model_config = json.load(f)
+    if input_fps == target_fps:
+        return input
 
-    model = create_model_from_config(model_config)
-    state_dict = torch.load(model_path, map_location="cpu")["state_dict"]
-    model.load_state_dict(state_dict)
+    elif input_fps > target_fps:
 
-    vae_config = {
-        "fps": 25,
-        "sample_rate": model_config["sample_rate"]
-    }
+        ratio = input_fps / target_fps
+        width = round(ratio / 2)
+        T = target.shape[-1]
+        
+        indices = torch.round(torch.arange(0, T) * ratio)  # (t,)
+        indices = indices[:, None] + torch.arange(-width, width + 1)  # (t, w)
+        indices = torch.clamp(indices, 0, T).long()  # (t, w)
 
-    return model, vae_config
-'''
+        indices = rearrange(indices, 't w -> (t w)')  # (t*w)
+        output = rearrange(input[..., indices], 'b d (t w) -> b (w d) t', t=T)  # (b, w*d, t)
+        return output
+
+    else:
+        ratio = input_fps / target_fps
+        T = target.shape[-1]
+        indices = (torch.arange(0, T) * ratio).long()  # (t,)
+        output = input[..., indices]  # (b, d, t)
+        return output
+
 
 def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
 

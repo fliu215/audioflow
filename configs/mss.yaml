@@ -27,7 +27,7 @@ base:
     rope_len: 8192
 
 adaptor:
-    name: VAEEncoder
+    name: LatentEncoder
     dim: 64
 
 train:

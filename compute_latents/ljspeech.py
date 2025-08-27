@@ -46,7 +46,7 @@ def compute_vae(args) -> None:
             latents = forward_in_chunks(vae, aug_audio, clip_samples)
             t = time.time() - t1
 
-            out_path = Path(out_dir, "wavs", "{}_vae.h5".format(Path(path).stem))
+            out_path = Path(out_dir, "wavs", "{}_{:03d}_vae.h5".format(Path(path).stem, i))
             out_path.parent.mkdir(parents=True, exist_ok=True)
             
             with h5py.File(out_path, 'w') as hf:

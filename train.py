@@ -194,6 +194,30 @@ def get_dataset(
                 duration=configs["clip_duration"]
             )
             
+        elif name == "MUSDB18HqLowres2HighresVAE":
+            from audio_flow.datasets.musdb18hq_lowres2highres_vae import MUSDB18HqLowres2HighresVAE
+            return MUSDB18HqLowres2HighresVAE(
+                root=configs[ds][name]["root"],
+                split=configs[ds][name]["split"],
+                duration=configs["clip_duration"]
+            )
+
+        elif name == "MUSDB18HqDac2StereoVAE":
+            from audio_flow.datasets.musdb18hq_dac2stereo_vae import MUSDB18HqDac2StereoVAE
+            return MUSDB18HqDac2StereoVAE(
+                root=configs[ds][name]["root"],
+                split=configs[ds][name]["split"],
+                duration=configs["clip_duration"]
+            )
+
+        elif name == "LJSpeechVAE":
+            from audio_flow.datasets.ljspeech_vae import LJSpeechVAE
+            return LJSpeechVAE(
+                root=configs[ds][name]["root"],
+                split=configs[ds][name]["split"],
+                duration=configs["clip_duration"]
+            )
+
         else:
             raise ValueError(name)
 
@@ -228,6 +252,18 @@ def get_data_transform(configs: dict):
         from audio_flow.data_transforms.mono2stereo import Mono2StereoVAE
         return Mono2StereoVAE()
 
+    elif name == "SuperResolutionVAE":
+        from audio_flow.data_transforms.mono2stereo import SuperResolutionVAE
+        return SuperResolutionVAE()
+
+    elif name == "Dac2StereoVAE":
+        from audio_flow.data_transforms.dac2stereo import Dac2StereoVAE
+        return Dac2StereoVAE()
+
+    elif name == "Text2SpeechVAE":
+        from audio_flow.data_transforms.text2speech import Text2SpeechVAE
+        return Text2SpeechVAE()
+
     else:
         raise ValueError(name)
 
@@ -261,9 +297,16 @@ def get_adaptor(
             dim=configs["base"]["dim"]
         )
 
-    if name == "VAEEncoder":
+    elif name == "VAEEncoder":
         from audio_flow.adaptors.vae import VAEEncoder
         return VAEEncoder(
+            in_channels=configs["adaptor"]["dim"], 
+            dim=configs["base"]["dim"]
+        )
+
+    elif name == "LatentEncoder":
+        from audio_flow.adaptors.latent import LatentEncoder
+        return LatentEncoder(
             in_channels=configs["adaptor"]["dim"], 
             dim=configs["base"]["dim"]
         )

@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch import Tensor
+from einops import rearrange
 
 
 class OnehotEncoder(nn.Module):
@@ -13,10 +14,16 @@ class OnehotEncoder(nn.Module):
         )
 
     def forward(self, cond_dict: dict) -> Tensor:
-        r"""Compute onehot embedding."""
+        r"""Compute latent embedding."""
 
-        emb_dict = {
-            "c": self.mlp(cond_dict["id"]),
-        }
+        if cond_dict["id"].ndim == 1:
+            c = self.mlp(cond_dict["id"])  # (b, d)
+            return {"c": c}
 
-        return emb_dict
+        elif cond_dict["id"].ndim > 1:
+            cx = self.mlp(cond_dict["id"])  # (b, t, d)
+            cx = rearrange(cx, 'b t d -> b d t')
+            return {"cx": cx}
+
+        else:
+            raise ValueError
