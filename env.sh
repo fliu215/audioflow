@@ -1,0 +1,15 @@
+pip install librosa==0.11.0
+pip install torch==2.8.0
+pip install torchaudio==2.8.0
+pip install torchdiffeq==0.2.5
+pip install tqdm==4.67.1
+pip install einops==0.8.1
+pip install matplotlib==3.10.1
+pip install torchcfm==1.0.7
+pip install bigvgan
+pip install descript-audio-codec
+pip install audidata==0.0.5
+pip install wandb==0.19.10
+pip install accelerate==1.10.0
+pip install h5py==3.14.0
+pip install stable-audio-tools

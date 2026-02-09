@@ -1,0 +1,341 @@
+from __future__ import annotations
+
+import argparse
+from copy import deepcopy
+from pathlib import Path
+from typing import Iterable, Literal
+
+import matplotlib.pyplot as plt
+import soundfile
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchdiffeq
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data._utils.collate import default_collate
+from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
+from tqdm import tqdm
+
+import wandb
+from audio_flow.adaptors.adaptor import Adaptor
+from audio_flow.datasets.dataset import MetaDataset
+from audio_flow.encoders.audio.levo_vae import LevoVAE
+from audio_flow.samplers.jsonl_sampler import JsonlSampler
+from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
+                              load_jsonl, logmel, parse_yaml, requires_grad,
+                              update_ema)
+
+
+def train(args) -> None:
+    r"""Train audio generation with flow matching."""
+
+    # Arguments
+    wandb_log = not args.no_log
+    config_path = args.config
+    filename = Path(__file__).stem
+    
+    # Configs
+    configs = parse_yaml(config_path)
+    device = configs["train"]["device"]
+    ckpt_path = configs["train"]["resume_ckpt_path"]
+
+    # Checkpoints directory
+    config_name = Path(config_path).stem
+    ckpts_dir = Path("./checkpoints", filename, config_name)
+    Path(ckpts_dir).mkdir(parents=True, exist_ok=True)
+
+    # Sampler
+    train_sampler = get_sampler(configs)
+
+    # Dataset
+    train_dataset = get_dataset(configs)
+
+    # Dataloader
+    train_dataloader = DataLoader(
+        dataset=train_dataset, 
+        batch_size=configs["train"]["batch_size_per_device"], 
+        sampler=train_sampler,
+        num_workers=configs["train"]["num_workers"], 
+        pin_memory=True,
+    )
+
+    # Model
+    base = get_base(configs=configs).to(device)
+    adaptor = get_adaptor(configs=configs).to(device)
+    model = CombinedModel(base, adaptor)
+
+    # VAE for validation
+    vae = LevoVAE().to(device)
+
+    if ckpt_path:
+        ckpt = torch.load(ckpt_path)
+        model.load_state_dict(ckpt, strict=True)
+
+    # EMA (optional)
+    ema = deepcopy(model).to(device)
+    requires_grad(ema, False)
+    update_ema(ema, model, decay=0)  # Ensure EMA is initialized with synced weights
+    ema.eval()  # EMA model should always be in eval mode
+
+    # Optimizer
+    optimizer, scheduler = get_optimizer_and_scheduler(
+        configs=configs, 
+        params=model.parameters()
+    )
+
+    # Flow matching data processor
+    fm = ConditionalFlowMatcher(sigma=0.)
+    
+    # Logger
+    if wandb_log:
+        wandb.init(project="audio_flow", name=f"{filename}_{config_name}")
+
+    for step, data in enumerate(tqdm(train_dataloader)):
+
+        # ------ 1. Data preparation ------
+        # 1.1 Data
+        x_real = data["target_audio_latent"].to(device)
+        noise = torch.randn_like(x_real)
+
+        # 1.2 Get input and velocity
+        t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
+
+        # ------ 2. Training ------
+        # 2.1 Forward
+        model.train()
+        c = model.adaptor(data)
+        vt = model.base(t=t, x=xt, c=c)
+
+        # 2.2 Loss
+        loss = torch.mean((vt - ut) ** 2)
+
+        # 2.3 Optimize
+        optimizer.zero_grad()  # Reset all parameter.grad to 0
+        loss.backward()  # Update all parameter.grad
+        optimizer.step()  # Update all parameters based on all parameter.grad
+        update_ema(ema, model, decay=0.999)
+
+        # 2.4 Learning rate scheduler
+        if scheduler:
+            scheduler.step()
+
+        if step % 100 == 0:
+            print("train loss: {:.4f}".format(loss.item()))
+
+        # ------ 3. Evaluation ------
+        # 3.1 Evaluate
+        if step % configs["train"]["test_every_n_steps"] == 0:
+
+            for split in ["train", "test"]:
+                validate(
+                    configs=configs,
+                    model=ema,
+                    vae=vae,
+                    split=split,
+                    out_dir=Path("./results", filename, config_name, f"steps={step}_ema"),
+                )
+
+            if wandb_log:
+                wandb.log(
+                    data={
+                        "train_loss": loss.item()
+                    },
+                    step=step
+                )
+        
+        # 3.2 Save model
+        if step % configs["train"]["save_every_n_steps"] == 0:
+           
+            ckpt_path = Path(ckpts_dir, f"step={step}_ema.pt")
+            torch.save(ema.state_dict(), ckpt_path)
+            print(f"Save model to {ckpt_path}")
+
+        if step == configs["train"]["training_steps"]:
+            break
+
+        step += 1
+        
+
+def get_dataset(configs: dict) -> Dataset:
+    r"""Get dataset."""
+    name = configs["dataset"]["name"]
+    
+    if name == "MetaDataset":
+        return MetaDataset(configs["clip_duration"])
+
+    else:
+        raise ValueError(name)
+
+
+def get_sampler(configs: dict) -> Iterable:
+    r"""Get sampler."""
+    name = configs["sampler"]["name"]
+
+    if name == "JsonlSampler":
+        paths = [meta["path"] for meta in configs["train_jsonls"]]
+        weights = [meta["weight"] for meta in configs["train_jsonls"]]
+        return JsonlSampler(paths, weights)
+
+    else:
+        raise ValueError(name)
+
+
+def get_base(
+    configs: dict, 
+) -> nn.Module:
+    r"""Initialize base model."""
+    name = configs["base"]["name"]
+
+    if name == "Transformer":
+        from audio_flow.models.transformer import Transformer
+        return Transformer(**configs["base"])
+
+    else:
+        raise ValueError(name)    
+
+
+def get_adaptor(
+    configs: dict, 
+) -> nn.Module:
+    r"""Initialize adaptor."""
+    name = configs["adaptor"]["name"]
+    
+    if name == "Adaptor":
+        return Adaptor(**configs["adaptor"])
+
+    else:
+        raise ValueError(name)    
+
+
+def get_optimizer_and_scheduler(
+    configs: dict, 
+    params: list[torch.Tensor]
+) -> tuple[optim.Optimizer, None | optim.lr_scheduler.LambdaLR]:
+    r"""Get optimizer and scheduler."""
+
+    lr = float(configs["train"]["lr"])
+    warm_up_steps = configs["train"]["warm_up_steps"]
+    optimizer_name = configs["train"]["optimizer"]
+
+    if optimizer_name == "AdamW":
+        optimizer = optim.AdamW(params=params, lr=lr)
+
+    if warm_up_steps:
+        lr_lambda = LinearWarmUp(warm_up_steps)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=lr_lambda)
+    else:
+        scheduler = None
+
+    return optimizer, scheduler
+
+
+def validate(
+    configs: dict,
+    model: nn.Module,
+    vae: nn.Module,
+    split: Literal["train", "test"],
+    out_dir: str
+) -> float:
+    r"""Validate the model on part of data."""
+
+    device = next(model.parameters()).device
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    jsonl_path = configs[f"validate_{split}_jsonl"]["path"]
+    n_valid = configs[f"validate_{split}_jsonl"]["num"]
+    metas = load_jsonl(jsonl_path)
+
+    skip_n = max(1, len(metas) // n_valid)
+    metas = metas[0 :: skip_n]
+
+    # Dataset
+    dataset = get_dataset(configs)
+    
+    for i in range(len(metas)):
+
+        # ------ 1. Data preparation ------
+        # 1.1 Get Data
+        data = dataset[metas[i]]
+        data = default_collate([data])
+
+        # 2.1 Sample noise
+        x_real = data["target_audio_latent"].to(device)
+        noise = torch.randn_like(x_real)
+        
+        # ------ 2. Forward with ODE ------
+        # 2.1 Iteratively forward
+        with torch.no_grad():
+            model.eval()
+            c = model.adaptor(data).to(device)
+            traj = torchdiffeq.odeint(
+                lambda t, x: model.base(t, x, c),
+                y0=noise,
+                t=torch.linspace(0, 1, 2, device=device),
+                atol=1e-4,
+                rtol=1e-4,
+                method="dopri5",
+            )
+
+        x_gen = traj[-1]  # (b, t, d)
+
+        # Decode audio from VAE latents
+        audio_gen = vae.decode(x_gen).data.cpu().numpy()[0]  # (c, l)
+        audio_gt = vae.decode(x_real).data.cpu().numpy()[0]  # (c, l)
+        
+        if "input_audio_latent" in data.keys(): 
+            x_in = data["input_audio_latent"].to(device)
+            audio_in = vae.decode(x_in).data.cpu().numpy()[0]  # (c, l)
+        else:
+            audio_in = None
+
+        # ------ 3. Plot and Visualization ------
+        # 3.1 Plot mel spectrogram
+        if audio_in is not None:
+            logmel_in = logmel(audio_in, vae.sr)
+        logmel_gen = logmel(audio_gen, vae.sr)
+        logmel_gt = logmel(audio_gt, vae.sr)
+
+        fig, axs = plt.subplots(3, 1, figsize=(10, 10))
+        vmin, vmax = -10, 5
+        if audio_in is not None:
+            axs[0].matshow(logmel_in.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+        axs[1].matshow(logmel_gen.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+        axs[2].matshow(logmel_gt.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+        axs[0].set_title("Input")
+        axs[1].set_title("Generation")
+        axs[2].set_title("Ground truth")
+        axs[2].xaxis.tick_bottom()
+
+        strs = [split, f"idx={i}"]
+        for key in ["prompt", "content"]:
+            if key in data.keys():
+                strs.append("{}={}".format(key, get_single_value(data[key])))
+        stem = ",".join(strs)
+        
+        out_path = Path(out_dir, stem + ".png")
+        plt.savefig(out_path)
+        print(f"Write out to {out_path}")
+
+        # 3.2 Save audio
+        if audio_in is not None:
+            out_path = Path(out_dir, stem + ",input.wav")
+            soundfile.write(file=out_path, data=audio_in.T, samplerate=vae.sr)
+            print(f"Write out to {out_path}") 
+
+        out_path = Path(out_dir, stem + ",gen.wav")
+        soundfile.write(file=out_path, data=audio_gen.T, samplerate=vae.sr)
+        print(f"Write out to {out_path}")
+
+        out_path = Path(out_dir, stem + ",gt.wav")
+        soundfile.write(file=out_path, data=audio_gt.T, samplerate=vae.sr)
+        print(f"Write out to {out_path}")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="Path of config yaml.")
+    parser.add_argument("--no_log", action="store_true", default=False)
+    args = parser.parse_args()
+
+    train(args)
