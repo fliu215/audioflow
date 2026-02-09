@@ -6,13 +6,15 @@ The supported tasks include:
 
 | Tasks                   | Supported    | Dataset    | Config yaml                                                  |
 |-------------------------|--------------|------------|--------------------------------------------------------------|
-| Text to music           | ✅           | GTZAN      | [configs/text2music.yaml](configs/text2music.yaml)           |
-| MIDI to music           | ✅           | MAESTRO    | [configs/midi2music.yaml](configs/midi2music.yaml)           |
-| Codec to audio          | ✅           | MUSDB18HQ  | [configs/codec2audio.yaml](configs/codec2audio.yaml)         |
-| Mono to stereo          | ✅           | MUSDB18HQ  | [configs/mono2stereo.yaml](configs/mono2stereo.yaml)         |
-| Super resolution        | ✅           | MUSDB18HQ  | [configs/superresolution.yaml](configs/superresolution.yaml) |
-| Music source separation | ✅           | MUSDB18HQ  | [configs/mss.yaml](configs/mss.yaml)                         |
-| Vocal to music          | ✅           | MUSDB18HQ  | [configs/vocal2music.yaml](configs/vocal2music.yaml)         |
+| Text to music           | ✅           | GTZAN      | [scripts/ttm.sh](scripts/ttm.sh)                             |
+| Text to speech          | ✅           | GTZAN      | [scripts/tts.sh](scripts/tts.sh)                             |
+| Text to audio           | ✅           | GTZAN      | [scripts/tta.sh](scripts/tta.sh)                             |
+| MIDI to music           | ✅           | MAESTRO    | To appear                                                    |
+| Codec to audio          | ✅           | MUSDB18HQ  | [scripts/dac2stereo.sh](scripts/dac2stereo.sh)               |
+| Mono to stereo          | ✅           | MUSDB18HQ  | [scripts/mono2stereo.sh](scripts/mono2stereo.sh)             |
+| Super resolution        | ✅           | MUSDB18HQ  | [scripts/superresolution.sh](scripts/superresolution.sh)     |
+| Music source separation | ✅           | MUSDB18HQ  | [scripts/mss.sh](scripts/mss.sh)                             |
+| Vocals to music         | ✅           | MUSDB18HQ  | [scripts/vocals2mixture.sh](scripts/vocals2mixture.sh)       |
 
 
 ## 0. Install dependencies
@@ -32,7 +34,9 @@ conda activate audio_flow
 bash env.sh
 ```
 
-## 1. Download datasets
+We start from a text to music example as follows.
+
+## 0. Download datasets
 
 Download the dataset corresponding to the task. 
 
@@ -50,45 +54,31 @@ bash ./scripts/download_musdb18hq.sh
 
 To download more datasets please see [scripts](scripts).
 
-## 2. Train
+## 1. Pre-extract VAE latents
 
-### 2.0 Pre-extract VAE latent
-
-In training, uses can use (1) online VAE extraction, or (2) offline VAE extraction. We adopt (2) to speed up the training of flow matching and to save RAM. 
-
-```python
-CUDA_VISIBLE_DEVICES=0 python -m compute_latents.gtzan_vae \
-  --dataset_root="./datasets/gtzan" \
-  --out_dir="./datasets/gtzan_vae" \
-  --augmentation_repeats=10
+```bash
+for SPLIT in "train" "test"; do
+    CUDA_VISIBLE_DEVICES=6 python -m compute_latents.gtzan \
+        --dataset_root="./datasets/gtzan" \
+        --split=${SPLIT} \
+        --out_dir="./datasets/gtzan_vae/${SPLIT}"
+done
 ```
 
-### 2.1 Train with single GPU
+## 2 Prepare JSONL files
 
-Here is an example of training a text to music generation system. Users can train different tasks viewing more config yaml files at [configs](configs).
-
-```python
-CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/text2music.yaml" --no_log
+```bash
+for SPLIT in "train" "test"; do
+    python -m create_jsonl.ttm.gtzan \
+        --split=${SPLIT} \
+        --vae_dir="./datasets/gtzan_vae/${SPLIT}" \
+        --out_path="./jsonls/ttm/${SPLIT}/gtzan.jsonl"
+done
 ```
 
-### 2.2 Finetune
-
-Extract VAE latent:
-
+## 3. Train
 ```python
-CUDA_VISIBLE_DEVICES=6 python -m compute_latents.musdb18hq_vae stems \
-  --dataset_root="./datasets/musdb18hq" \
-  --out_dir="./datasets/musdb18hq_vae" \
-  --augmentation_repeats=10
-```
-
-Train:
-
-```python
-CUDA_VISIBLE_DEVICES=0 python finetune.py \
-  --config="./configs/mss.yaml" \
-  --ckpt_path="checkpoints/train/text2music/step=300000_ema.pth" \
-  --no_log
+CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
 To run more examples please see [configs](configs).
