@@ -8,13 +8,13 @@ The supported tasks include:
 |-------------------------|--------------|------------|--------------------------------------------------------------|
 | Text to music           | ✅           | GTZAN      | [scripts/ttm/ttm_gtzan.sh](scripts/ttm/ttm_gtzan.sh)                             |
 | Text to speech          | ✅           | LJSpeech <br> LibriTTS      | [scripts/tts/tts_ljspeech.sh](scripts/tts/tts_ljspeech.sh) <br> [scripts/tts/tts_libritts.sh](scripts/tts/tts_libritts.sh)                            |
-| Text to audio           | ✅           | GTZAN      | [scripts/tta.sh](scripts/tta.sh)                             |
+| Text to audio           | ✅           | Clotho <br> AudioCaps      | [scripts/tta/tta_clotho.sh](scripts/tta/tta_clotho.sh) <br> [scripts/tta/tta_audiocaps.sh](scripts/tta/tta_audiocaps.sh)                            |
 | MIDI to music           | ✅           | MAESTRO    | To appear                                                    |
 | Codec to audio          | ✅           | MUSDB18HQ  | [scripts/codec2audio/dac2stereo.sh](scripts/codec2audio/dac2stereo.sh)               |
 | Mono to stereo          | ✅           | MUSDB18HQ  | [scripts/mono2stereo/mono2stereo_musdb18hq.sh](scripts/mono2stereo/mono2stereo_musdb18hq.sh)             |
-| Super resolution        | ✅           | MUSDB18HQ  | [scripts/superresolution.sh](scripts/superresolution.sh)     |
-| Music source separation | ✅           | MUSDB18HQ  | [scripts/mss.sh](scripts/mss.sh)                             |
-| Vocals to music         | ✅           | MUSDB18HQ  | [scripts/vocals2mixture.sh](scripts/vocals2mixture.sh)       |
+| Super resolution        | ✅           | MUSDB18HQ  | [scripts/superresolution/superresolution_musdb18hq.sh](scripts/superresolution/superresolution_musdb18hq.sh)     |
+| Music source separation | ✅           | MUSDB18HQ  | [scripts/mss/mixture2vocals_musdb18hq.sh](scripts/mss/mixture2vocals_musdb18hq.sh)                             |
+| Vocals to music         | ✅           | MUSDB18HQ  | [scripts/vocals2audio/vocals2mixture.sh](scripts/vocals2audio/vocals2mixture.sh.sh)       |
 
 
 ## 0. Install dependencies
