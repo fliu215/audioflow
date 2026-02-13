@@ -5,6 +5,8 @@ import torch.nn as nn
 from torch import LongTensor
 from torch.nn.utils.rnn import pad_sequence
 
+from audio_flow.utils import normalize_text
+
 VOCAB = [
     "<pad>", "<bos>", "<eos>", "<unk>", "<sil>",
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
@@ -44,9 +46,3 @@ class CharEncoder(nn.Module):
         ids = pad_sequence(ids, batch_first=True, padding_value=self.char2id["<pad>"]).to(device)
         
         return ids
-
-
-def normalize_text(x: str) -> str:
-    x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only
-    x = re.sub(r"\s+", " ", x)  # Remove extra spaces
-    return x.strip()

@@ -23,7 +23,7 @@ from audio_flow.encoders.audio.levo_vae import LevoVAE
 from audio_flow.samplers.jsonl_sampler import JsonlSampler
 from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
                               load_jsonl, logmel, parse_yaml, requires_grad,
-                              update_ema)
+                              update_ema, normalize_text)
 
 
 def train(args) -> None:
@@ -309,7 +309,8 @@ def validate(
         strs = [split, f"idx={i}"]
         for key in ["prompt", "content"]:
             if key in data.keys():
-                strs.append("{}={}".format(key, get_single_value(data[key])))
+                text = normalize_text(get_single_value(data[key]))[0 : 150]
+                strs.append("{}={}".format(key, text))
         stem = ",".join(strs)
         
         out_path = Path(out_dir, stem + ".png")

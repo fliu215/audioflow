@@ -2,17 +2,19 @@
 clip_duration: 10.
 
 train_jsonls:
-  - path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl" 
+  - path: "./jsonls/tts/train/libritts_train-clean-100.jsonl"
     weight: 1.0
-  - path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl"
+  - path: "./jsonls/tts/train/libritts_train-clean-360.jsonl"
+    weight: 1.0
+  - path: "./jsonls/tts/train/libritts_train-other-500.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
-    path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl"
+    path: "./jsonls/tts/train/libritts_train-clean-100.jsonl"
     num: 10
 
 validate_test_jsonl:
-    path: "./jsonls/mixture2vocals/test/musdb18hq.jsonl"
+    path: "./jsonls/tts/test/libritts_test_clean.jsonl"
     num: 10
 
 sampler: 

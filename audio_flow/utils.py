@@ -6,6 +6,7 @@ from pathlib import Path
 import h5py
 import librosa
 import numpy as np
+import re
 import torch
 import torch.nn as nn
 import yaml
@@ -174,3 +175,9 @@ def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
         hop_length=round(sr * 0.01), 
         n_mels=128
     )).T  # (t, f)
+
+
+def normalize_text(x: str) -> str:
+    x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only
+    x = re.sub(r"\s+", " ", x)  # Remove extra spaces
+    return x.strip()

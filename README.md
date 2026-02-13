@@ -6,12 +6,12 @@ The supported tasks include:
 
 | Tasks                   | Supported    | Dataset    | Config yaml                                                  |
 |-------------------------|--------------|------------|--------------------------------------------------------------|
-| Text to music           | ✅           | GTZAN      | [scripts/ttm.sh](scripts/ttm.sh)                             |
-| Text to speech          | ✅           | GTZAN      | [scripts/tts.sh](scripts/tts.sh)                             |
+| Text to music           | ✅           | GTZAN      | [scripts/ttm/ttm_gtzan.sh](scripts/ttm/ttm_gtzan.sh)                             |
+| Text to speech          | ✅           | LJSpeech <br> LibriTTS      | [scripts/tts/tts_ljspeech.sh](scripts/tts/tts_ljspeech.sh) <br> [scripts/tts/tts_libritts.sh](scripts/tts/tts_libritts.sh)                            |
 | Text to audio           | ✅           | GTZAN      | [scripts/tta.sh](scripts/tta.sh)                             |
 | MIDI to music           | ✅           | MAESTRO    | To appear                                                    |
-| Codec to audio          | ✅           | MUSDB18HQ  | [scripts/dac2stereo.sh](scripts/dac2stereo.sh)               |
-| Mono to stereo          | ✅           | MUSDB18HQ  | [scripts/mono2stereo.sh](scripts/mono2stereo.sh)             |
+| Codec to audio          | ✅           | MUSDB18HQ  | [scripts/codec2audio/dac2stereo.sh](scripts/codec2audio/dac2stereo.sh)               |
+| Mono to stereo          | ✅           | MUSDB18HQ  | [scripts/mono2stereo/mono2stereo_musdb18hq.sh](scripts/mono2stereo/mono2stereo_musdb18hq.sh)             |
 | Super resolution        | ✅           | MUSDB18HQ  | [scripts/superresolution.sh](scripts/superresolution.sh)     |
 | Music source separation | ✅           | MUSDB18HQ  | [scripts/mss.sh](scripts/mss.sh)                             |
 | Vocals to music         | ✅           | MUSDB18HQ  | [scripts/vocals2mixture.sh](scripts/vocals2mixture.sh)       |
@@ -58,10 +58,10 @@ To download more datasets please see [scripts](scripts).
 
 ```bash
 for SPLIT in "train" "test"; do
-    CUDA_VISIBLE_DEVICES=6 python -m compute_latents.gtzan \
+    CUDA_VISIBLE_DEVICES=0 python -m compute_latents.gtzan \
         --dataset_root="./datasets/gtzan" \
         --split=${SPLIT} \
-        --out_dir="./datasets/gtzan_vae/${SPLIT}"
+        --out_dir="./latents/gtzan/${SPLIT}/audio"
 done
 ```
 
@@ -70,8 +70,7 @@ done
 ```bash
 for SPLIT in "train" "test"; do
     python -m create_jsonl.ttm.gtzan \
-        --split=${SPLIT} \
-        --vae_dir="./datasets/gtzan_vae/${SPLIT}" \
+        --vae_dir="./latents/gtzan/${SPLIT}/audio" \
         --out_path="./jsonls/ttm/${SPLIT}/gtzan.jsonl"
 done
 ```

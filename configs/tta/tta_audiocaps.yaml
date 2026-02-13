@@ -2,17 +2,17 @@
 clip_duration: 10.
 
 train_jsonls:
-  - path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl" 
+  - path: "./jsonls/tta/train/audiocaps2.0.jsonl" 
     weight: 1.0
-  - path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl"
+  - path: "./jsonls/tta/train/audiocaps2.0.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
-    path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl"
+    path: "./jsonls/tta/train/audiocaps2.0.jsonl"
     num: 10
 
 validate_test_jsonl:
-    path: "./jsonls/mixture2vocals/test/musdb18hq.jsonl"
+    path: "./jsonls/tta/test/audiocaps2.0.jsonl"
     num: 10
 
 sampler: 

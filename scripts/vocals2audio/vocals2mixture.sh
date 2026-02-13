@@ -1,27 +1,29 @@
 #!/bin/bash
 
 # 1. Compute latents
+# Mixture latents
 for SPLIT in "train" "test"; do
 	CUDA_VISIBLE_DEVICES=6 python -m compute_latents.musdb18hq stereo \
 		--dataset_root="./datasets/musdb18hq/" \
 		--stem="mixture" \
 		--split=${SPLIT} \
-		--out_dir="./datasets/musdb18hq_vae/mixture/${SPLIT}"
+		--out_dir="./latents/musdb18hq/${SPLIT}/mixture"
 done
 
+# Vocals latents
 for SPLIT in "train" "test"; do
 	CUDA_VISIBLE_DEVICES=5 python -m compute_latents.musdb18hq stereo \
 		--dataset_root="./datasets/musdb18hq" \
 		--stem="vocals" \
 		--split=${SPLIT} \
-		--out_dir="./datasets/musdb18hq_vae/vocals/${SPLIT}"
+		--out_dir="./latents/musdb18hq/${SPLIT}/vocals"
 done
 
 # 2. Create jsonls
 for SPLIT in "train" "test"; do
 	python -m create_jsonl.mono2stereo.musdb18hq \
-		--input_vae_dir="./datasets/musdb18hq_vae/vocals/${SPLIT}" \
-		--target_vae_dir="./datasets/musdb18hq_vae/mixture/${SPLIT}" \
+		--input_vae_dir="./latents/musdb18hq/${SPLIT}/vocals" \
+		--target_vae_dir="./latents/musdb18hq/${SPLIT}/mixture" \
 		--out_path="./jsonls/vocals2mixture/${SPLIT}/musdb18hq.jsonl"
 done
 
