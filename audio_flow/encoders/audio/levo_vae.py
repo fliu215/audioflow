@@ -31,6 +31,7 @@ class LevoVAE(nn.Module):
 
         self.sr = model_config["sample_rate"]
         self.fps = 25
+        self.saveable = False
         
     def encode(self, audio: Tensor) -> Tensor:
         r"""Convert text into VAE latents.

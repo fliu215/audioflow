@@ -10,6 +10,7 @@ class CLIPTextEncoder(nn.Module):
         self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
         self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         self.dim = self.model.config.vision_config.projection_dim
+        self.saveable = False
 
     def forward(self, text: list[str]) -> Tensor:
         r"""Convert text into CLAP embedding.

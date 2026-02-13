@@ -10,6 +10,7 @@ class T5(nn.Module):
         self.tokenizer = T5Tokenizer.from_pretrained("t5-base")
         self.encoder = T5EncoderModel.from_pretrained("t5-base")
         self.dim = self.encoder.config.d_model
+        self.saveable = False
 
     def forward(self, text: list[str]) -> Tensor:
         r"""Convert text into T5 embedding.

@@ -15,6 +15,7 @@ class DAC(nn.Module):
         self.sr = self.model.sample_rate
         self.fps = self.sr / 2 / 4 / 8 / 8
         self.n_quantizers = n_quantizers
+        self.saveable = False
 
     def encode(self, audio: Tensor) -> Tensor:
         r"""Convert audio into discrete code.

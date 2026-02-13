@@ -17,7 +17,7 @@ from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
 from tqdm import tqdm
 
 import wandb
-from audio_flow.adaptors.adaptor import Adaptor
+from audio_flow.adapters.adapter import Adapter
 from audio_flow.datasets.dataset import MetaDataset
 from audio_flow.encoders.audio.levo_vae import LevoVAE
 from audio_flow.samplers.jsonl_sampler import JsonlSampler
@@ -61,8 +61,8 @@ def train(args) -> None:
 
     # Model
     base = get_base(configs=configs).to(device)
-    adaptor = get_adaptor(configs=configs).to(device)
-    model = CombinedModel(base, adaptor)
+    adapter = get_adapter(configs=configs).to(device)
+    model = CombinedModel(base, adapter)
 
     # VAE for validation
     vae = LevoVAE().to(device)
@@ -103,7 +103,7 @@ def train(args) -> None:
         # ------ 2. Training ------
         # 2.1 Forward
         model.train()
-        c = model.adaptor(data)
+        c = model.adapter(data)
         vt = model.base(t=t, x=xt, c=c)
 
         # 2.2 Loss
@@ -121,7 +121,7 @@ def train(args) -> None:
 
         if step % 100 == 0:
             print("train loss: {:.4f}".format(loss.item()))
-
+        
         # ------ 3. Evaluation ------
         # 3.1 Evaluate
         if step % configs["train"]["test_every_n_steps"] == 0:
@@ -146,15 +146,44 @@ def train(args) -> None:
         # 3.2 Save model
         if step % configs["train"]["save_every_n_steps"] == 0:
            
-            ckpt_path = Path(ckpts_dir, f"step={step}_ema.pt")
-            torch.save(ema.state_dict(), ckpt_path)
+            ckpt_path = Path(ckpts_dir, f"step={step}_ema.pth")
+            torch.save(get_saveable_state_dict(ema), ckpt_path)
             print(f"Save model to {ckpt_path}")
 
         if step == configs["train"]["training_steps"]:
             break
 
         step += 1
-        
+
+
+# def get_saveable_state_dict(model):
+#     return {
+#         k: v
+#         for k, v in model.state_dict().items()
+#         if all(
+#             getattr(m, "saveable", True)
+#             for n, m in model.named_modules()
+#             if k.startswith(n)
+#         )
+#     }
+
+
+def get_saveable_state_dict(model):
+    save_dict = {}
+
+    for k, v in model.state_dict().items():
+        keep = True
+
+        for n, m in model.named_modules():
+            if k.startswith(n) and getattr(m, "saveable", True) is False:
+                keep = False
+                break
+
+        if keep:
+            save_dict[k] = v
+
+    return save_dict
+     
 
 def get_dataset(configs: dict) -> Dataset:
     r"""Get dataset."""
@@ -194,14 +223,14 @@ def get_base(
         raise ValueError(name)    
 
 
-def get_adaptor(
+def get_adapter(
     configs: dict, 
 ) -> nn.Module:
-    r"""Initialize adaptor."""
-    name = configs["adaptor"]["name"]
+    r"""Initialize adapter."""
+    name = configs["adapter"]["name"]
     
-    if name == "Adaptor":
-        return Adaptor(**configs["adaptor"])
+    if name == "Adapter":
+        return Adapter(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -266,7 +295,7 @@ def validate(
         # 2.1 Iteratively forward
         with torch.no_grad():
             model.eval()
-            c = model.adaptor(data).to(device)
+            c = model.adapter(data).to(device)
             traj = torchdiffeq.odeint(
                 lambda t, x: model.base(t, x, c),
                 y0=noise,

@@ -9,7 +9,7 @@ from audio_flow.models.aligner import Aligner
 from audio_flow.utils import get_single_value
 
 
-class Adaptor(nn.Module): 
+class Adapter(nn.Module): 
     def __init__(self, dim: int, max_length: int, **kwargs):
         super().__init__()
 
@@ -23,8 +23,8 @@ class Adaptor(nn.Module):
         self.tts_aligner = Aligner(dim, dim, max_length)
         
         # CLAP
-        self.clap_encoder = CLAPTextEncoder()
-        self.clap_fc = nn.Linear(self.clap_encoder.dim, dim)
+        self.clap_text_encoder = CLAPTextEncoder()
+        self.clap_fc = nn.Linear(self.clap_text_encoder.dim, dim)
 
         # VAE encoder
         self.audiovae_fc = nn.Linear(64, dim)
@@ -57,7 +57,7 @@ class Adaptor(nn.Module):
         prompt = self.t5_encoder(data["prompt"])  # (b, l', d)
         prompt = self.t5_aligner(prompt, length)  # (b, l, d)
 
-        clap = self.clap_encoder(data["prompt"])  # (b, d)
+        clap = self.clap_text_encoder(data["prompt"])  # (b, d)
         clap = self.clap_fc(clap)[:, None, :].repeat(1, length, 1)  # (b, l, d)
 
         return task + prompt + clap
@@ -81,7 +81,7 @@ class Adaptor(nn.Module):
         prompt = self.t5_encoder(data["prompt"])  # (b, l', d)
         prompt = self.t5_aligner(prompt, length)  # (b, l, d)
 
-        clap = self.clap_encoder(data["prompt"])  # (b, d)
+        clap = self.clap_text_encoder(data["prompt"])  # (b, d)
         clap = self.clap_fc(clap)[:, None, :].repeat(1, length, 1)  # (b, l, d)
 
         return task + prompt + clap

@@ -29,8 +29,8 @@ base:
     num_heads: 24
     rope_len: 8192
 
-adaptor:
-    name: Adaptor
+adapter:
+    name: Adapter
     dim: *dim
     max_length: 1000
 

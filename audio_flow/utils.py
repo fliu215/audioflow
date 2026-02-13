@@ -73,10 +73,10 @@ def requires_grad(model: nn.Module, flag=True) -> None:
 
 
 class CombinedModel(nn.Module):
-    def __init__(self, base: nn.Module, adaptor: nn.Module) -> None:
+    def __init__(self, base: nn.Module, adapter: nn.Module) -> None:
         super().__init__()
         self.base = base
-        self.adaptor = adaptor
+        self.adapter = adapter
 
 
 def extract_latents_in_chunks(

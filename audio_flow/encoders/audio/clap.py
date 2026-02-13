@@ -10,6 +10,7 @@ class CLAPTextEncoder(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained("laion/clap-htsat-unfused")
         self.encoder = AutoModel.from_pretrained("laion/clap-htsat-unfused")
         self.dim = self.encoder.config.audio_config.projection_dim
+        self.saveable = False
         
     def forward(self, text: list[str]) -> Tensor:
         r"""Convert text into CLAP embedding.

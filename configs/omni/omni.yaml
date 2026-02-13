@@ -2,11 +2,27 @@
 clip_duration: 10.
 
 train_jsonls:
+  - path: "./jsonls/dac2stereo/train/musdb18hq.jsonl"
+    weight: 1.0
+  - path: "./jsonls/mono2stereo/train/musdb18hq.jsonl"
+    weight: 1.0
+  - path: "./jsonls/mixture2vocals/train/musdb18hq.jsonl"
+    weight: 1.0
+  - path: "./jsonls/superresolution/train/musdb18hq.jsonl"
+    weight: 1.0
+  - path: "./jsonls/tta/train/audiocaps2.0.jsonl"
+    weight: 1.0
+  - path: "./jsonls/tta/train/clotho2.1.jsonl"
+    weight: 1.0
+  - path: "./jsonls/ttm/train/gtzan.jsonl"
+    weight: 1.0
   - path: "./jsonls/tts/train/libritts_train-clean-100.jsonl"
     weight: 1.0
   - path: "./jsonls/tts/train/libritts_train-clean-360.jsonl"
     weight: 1.0
   - path: "./jsonls/tts/train/libritts_train-other-500.jsonl"
+    weight: 1.0
+  - path: "./jsonls/vocals2mixture/train/musdb18hq.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
@@ -14,7 +30,7 @@ validate_train_jsonl:
     num: 10
 
 validate_test_jsonl:
-    path: "./jsonls/tts/test/libritts_test-clean.jsonl"
+    path: "./jsonls/tts/train/libritts_test-clean.jsonl"
     num: 10
 
 sampler: 
@@ -38,7 +54,7 @@ adapter:
 
 train:
     device: cuda
-    num_workers: 16
+    num_workers: 0
     precision: "no"  # "no" (fp32) | "bf16"
     optimizer: AdamW
     lr: 1e-4

@@ -25,6 +25,7 @@ class CharEncoder(nn.Module):
         self.id2char = {i: c for i, c in enumerate(self.vocab)}
         self.vocab_size = len(self.vocab)
         self._dummy = nn.Parameter(torch.zeros(1))
+        self.saveable = False
         
     def forward(self, text: list[str]) -> LongTensor:
         r"""Convert text into IDs.
