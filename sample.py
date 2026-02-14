@@ -1,29 +1,15 @@
 from __future__ import annotations
 
 import argparse
-from copy import deepcopy
 from pathlib import Path
-from typing import Iterable, Literal
 
-import matplotlib.pyplot as plt
 import soundfile
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import torchdiffeq
-from torch.utils.data import DataLoader, Dataset
 from torch.utils.data._utils.collate import default_collate
-from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
-from tqdm import tqdm
 
-import wandb
-from audio_flow.adapters.adapter import Adapter
-from audio_flow.datasets.dataset import MetaDataset
 from audio_flow.encoders.audio.levo_vae import LevoVAE
-from audio_flow.samplers.jsonl_sampler import JsonlSampler
-from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
-                              load_jsonl, logmel, parse_yaml, requires_grad,
-                              update_ema, normalize_text)
+from audio_flow.utils import parse_yaml
 from train import get_model
 
 
@@ -94,28 +80,8 @@ def get_data(args):
 
     elif task == ["music_source_separation", "mono_to_stereo", "super-resolution", 
         "codec_to_music"]:
-        pass
         # TODO
-        # vae = LevoVAE().to(device)
-        # audio, fs = librosa.load(path=path, sr=vae.sr, mono=False)  # (l,)
-        # audio = np.repeat(audio[None, :], repeats=2, axis=0)  # (2, l)
-        
-        # chunk_samples = int(chunk_duration * vae.sr)
-        # base_path = Path(out_dir, path.stem)
-        
-        # compute_and_save_latents(
-        #     audio=audio, 
-        #     aug_repeats=aug_repeats, 
-        #     chunk_samples=chunk_samples, 
-        #     vae=vae, 
-        #     latent_type=latent_type, 
-        #     base_path=base_path
-        # )
-
-        # data = {
-        #     "task": task, 
-        #     "prompt": args.prompt
-        # }
+        pass
 
     else:
         raise ValueError(task)
