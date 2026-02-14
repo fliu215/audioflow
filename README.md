@@ -80,7 +80,23 @@ done
 CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
-To run more examples please see [configs](configs).
+## 4. Sample
+```python
+CUDA_VISIBLE_DEVICES=0 python sample.py \
+    --config="./configs/ttm/ttm_gtzan.yaml" \
+    --ckpt_path="checkpoints/train/ttm_gtzan/step=200000_ema.pth" \
+    --task="text_to_music" \
+    --prompt="blues" \
+    --out_path="out.wav"
+```
+
+## Finetune
+
+If users wish to finetune on a new task with a new adapter, run this command for an example:
+
+```python
+CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/finetune/ft.yaml"
+```
 
 ## External links
 

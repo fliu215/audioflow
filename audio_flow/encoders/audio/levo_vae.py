@@ -29,6 +29,7 @@ class LevoVAE(nn.Module):
         state_dict = torch.load(model_path, map_location="cpu")["state_dict"]
         self.vae.load_state_dict(state_dict)
 
+        self.dim = model_config["model"]["latent_dim"]
         self.sr = model_config["sample_rate"]
         self.fps = 25
         self.saveable = False

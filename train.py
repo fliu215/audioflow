@@ -17,7 +17,6 @@ from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
 from tqdm import tqdm
 
 import wandb
-from audio_flow.adapters.adapter import Adapter
 from audio_flow.datasets.dataset import MetaDataset
 from audio_flow.encoders.audio.levo_vae import LevoVAE
 from audio_flow.samplers.jsonl_sampler import JsonlSampler
@@ -60,16 +59,10 @@ def train(args) -> None:
     )
 
     # Model
-    base = get_base(configs=configs).to(device)
-    adapter = get_adapter(configs=configs).to(device)
-    model = CombinedModel(base, adapter)
+    model = get_model(configs, ckpt_path).to(device)
 
     # VAE for validation
     vae = LevoVAE().to(device)
-
-    if ckpt_path:
-        ckpt = torch.load(ckpt_path)
-        model.load_state_dict(ckpt, strict=True)
 
     # EMA (optional)
     ema = deepcopy(model).to(device)
@@ -96,6 +89,7 @@ def train(args) -> None:
         # 1.1 Data
         x_real = data["target_audio_latent"].to(device)
         noise = torch.randn_like(x_real)
+        length = noise.shape[-1]
 
         # 1.2 Get input and velocity
         t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
@@ -103,7 +97,7 @@ def train(args) -> None:
         # ------ 2. Training ------
         # 2.1 Forward
         model.train()
-        c = model.adapter(data)
+        c = model.adapter(data, length)
         vt = model.base(t=t, x=xt, c=c)
 
         # 2.2 Loss
@@ -156,18 +150,6 @@ def train(args) -> None:
         step += 1
 
 
-# def get_saveable_state_dict(model):
-#     return {
-#         k: v
-#         for k, v in model.state_dict().items()
-#         if all(
-#             getattr(m, "saveable", True)
-#             for n, m in model.named_modules()
-#             if k.startswith(n)
-#         )
-#     }
-
-
 def get_saveable_state_dict(model):
     save_dict = {}
 
@@ -209,6 +191,19 @@ def get_sampler(configs: dict) -> Iterable:
         raise ValueError(name)
 
 
+def get_model(configs: dict, ckpt_path: str) -> nn.Module:
+    base = get_base(configs=configs)
+    adapter = get_adapter(configs=configs)
+    model = CombinedModel(base, adapter)
+
+    if ckpt_path:
+        ckpt = torch.load(ckpt_path)
+        model.load_state_dict(ckpt, strict=False)
+        print(f"Load checkpoint from {ckpt_path}")
+
+    return model
+
+
 def get_base(
     configs: dict, 
 ) -> nn.Module:
@@ -230,7 +225,12 @@ def get_adapter(
     name = configs["adapter"]["name"]
     
     if name == "Adapter":
+        from audio_flow.adapters.adapter import Adapter
         return Adapter(**configs["adapter"])
+
+    if name == "AdapterFinetune":
+        from audio_flow.adapters.adapter_ft import AdapterFinetune
+        return AdapterFinetune(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -290,12 +290,13 @@ def validate(
         # 2.1 Sample noise
         x_real = data["target_audio_latent"].to(device)
         noise = torch.randn_like(x_real)
+        length = noise.shape[-1]
         
         # ------ 2. Forward with ODE ------
         # 2.1 Iteratively forward
         with torch.no_grad():
             model.eval()
-            c = model.adapter(data).to(device)
+            c = model.adapter(data, length).to(device)
             traj = torchdiffeq.odeint(
                 lambda t, x: model.base(t, x, c),
                 y0=noise,

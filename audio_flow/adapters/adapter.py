@@ -29,11 +29,10 @@ class Adapter(nn.Module):
         # VAE encoder
         self.audiovae_fc = nn.Linear(64, dim)
 
-    def forward(self, data: dict) -> Tensor:
+    def forward(self, data: dict, length: int) -> Tensor:
         r"""Get fixed length condition."""
         task = get_single_value(data["task"])
-        length = data["target_audio_latent"].shape[-1]
-
+        
         if task == "text_to_music":
             return self.get_ttm_condition(data, length)
         
