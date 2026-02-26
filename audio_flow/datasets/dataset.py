@@ -61,7 +61,7 @@ def get_tts_data(meta: dict, clip_duration: float) -> dict:
 
     bgn = random_bgn_frame(total_frames, clip_frames)
     latent, length = load_latent(path, bgn, clip_frames)
-
+    
     data = {
         "task": task,
         "content": content,

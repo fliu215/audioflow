@@ -29,7 +29,7 @@ class CLAPTextEncoder(nn.Module):
 
         with torch.no_grad():
             self.encoder.eval()
-            # latent = self.encoder.get_text_features(**inputs)  # (b, d)
-            latent = self.encoder.get_text_features(**inputs).pooler_output  # (b, d)
+            latent = self.encoder.get_text_features(**inputs)  # (b, d)
+            # latent = self.encoder.get_text_features(**inputs).pooler_output  # (b, d)
         
         return latent

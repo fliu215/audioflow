@@ -53,12 +53,16 @@ class Transformer(nn.Module):
         Outputs:
             out: (b, d, t)
         """
+
+        # Time embedding
+        if t.dim() == 0:
+            t = t.repeat(x.shape[0])  # (b,)
+        c = c + self.t_embedder(t)[:, None, :]  # (b, 1, d)
         
+        # Transformer
         x = self.fc_in(rearrange(x, 'b d t -> b t d'))
-        
         for block in self.blocks:
             x = block(x, c, self.rope)
-
         x = rearrange(self.fc_out(x), 'b t d -> b d t')
 
         return x

@@ -5,14 +5,14 @@ import torch.nn as nn
 from torch import LongTensor
 from torch.nn.utils.rnn import pad_sequence
 
-from audio_flow.utils import normalize_text
+# from audio_flow.utils import normalize_text
 
 VOCAB = [
     "<pad>", "<bos>", "<eos>", "<unk>", "<sil>",
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
     "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-    "à", "â", "é", "è", "ê", "ñ",# "ü",
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", " "
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
+    " ", ".", ",", "!", "?", "'", ";", "-", ":"
 ]
 
 
@@ -41,14 +41,9 @@ class CharEncoder(nn.Module):
             ids: (b, l, d)
         """
         device = next(self.parameters()).device
-        text = [normalize_text(t) for t in text]
+        text = [self.normalize_text(t) for t in text]
 
-        
-        # try:
         ids = [LongTensor([self.get_id(c) for c in t]) for t in text]
-        # except:
-            # [self.char2id[c] for c in text[0]]
-            # from IPython import embed; embed(using=False); os._exit(0)
         ids = pad_sequence(ids, batch_first=True, padding_value=self.char2id["<pad>"]).to(device)
         
         return ids
@@ -62,3 +57,7 @@ class CharEncoder(nn.Module):
             print(f"{char} is not in vocab.")
 
         return id
+
+
+    def normalize_text(self, text: str) -> str:
+        return "".join(c for c in text.lower() if c in self.vocab)
