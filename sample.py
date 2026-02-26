@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import librosa
 import soundfile
 import torch
+from torch import Tensor
 import torchdiffeq
 from torch.utils.data._utils.collate import default_collate
 
@@ -20,7 +22,7 @@ def sample(args) -> None:
     config_path = args.config
     ckpt_path = args.ckpt_path
     out_path = args.out_path
-    duration = 10.
+    duration = args.duration
     
     # Configs
     configs = parse_yaml(config_path)
@@ -33,8 +35,9 @@ def sample(args) -> None:
     vae = LevoVAE().to(device)
 
     # Prepare meta data
-    data = get_data(args)
+    data = get_data(args, vae)
     data = default_collate([data])  # create a batch
+    duration = get_duration(args)
 
     # Noise
     length = round(duration * vae.fps)
@@ -62,14 +65,14 @@ def sample(args) -> None:
     print(f"Write out to {out_path}")
 
 
-def get_data(args):
+def get_data(args, vae):
 
     task = args.task
 
     if task in ["text_to_speech"]:
         return {
             "task": task, 
-            "content": args.prompt
+            "content": args.prompt,
         }
 
     elif task in ["text_to_music", "text_to_audio"]:
@@ -78,13 +81,36 @@ def get_data(args):
             "prompt": args.prompt
         }
 
-    elif task == ["music_source_separation", "mono_to_stereo", "super-resolution", 
+    elif task in ["music_source_separation", "mono_to_stereo", "super-resolution", 
         "codec_to_music"]:
-        # TODO
-        pass
+
+        audio_path = args.audio_path
+        instruction = args.instruction
+
+        device = next(vae.parameters()).device
+        audio, fs = librosa.load(path=audio_path, sr=vae.sr, mono=False)
+        audio = Tensor(audio).to(device)  # (c, l)
+        latent = vae.encode(audio[None, :, :])[0]  # (d, t)
+
+        return {
+            "task": task,
+            "instruction": instruction,
+            "input_audio_latent": latent,
+            "latent_length": latent.shape[-1]
+        }
 
     else:
         raise ValueError(task)
+
+
+def get_duration(args):
+    task = args.task
+
+    if task == "text_to_speech":
+        return len(args.prompt) / 16.30
+
+    else:
+        return args.duration
 
 
 if __name__ == "__main__":
@@ -94,7 +120,9 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_path", type=str, required=True)
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--prompt", type=str, required=True)
-    parser.add_argument("--audio", type=str)
+    parser.add_argument("--instruction", type=str)
+    parser.add_argument("--audio_path", type=str)
+    parser.add_argument("--duration", type=float, default=10.)
     parser.add_argument("--out_path", type=str, required=True)
     args = parser.parse_args()
 

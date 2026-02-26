@@ -35,6 +35,7 @@ class Aligner(nn.Module):
         Returns:
             out: (b, l_out, d)
         """
+        
         c = self.fc(c)
         x = self.register[None, 0 : length, :].repeat(c.shape[0], 1, 1)
 

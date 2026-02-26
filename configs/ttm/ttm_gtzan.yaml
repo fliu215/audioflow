@@ -16,7 +16,7 @@ validate_test_jsonl:
     num: 10
 
 sampler: 
-    name: JsonlSampler
+    name: BatchJsonlSampler
 
 dataset: 
     name: MetaDataset
