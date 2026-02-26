@@ -177,7 +177,25 @@ def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
     )).T  # (t, f)
 
 
-def normalize_text(x: str) -> str:
-    x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only
-    x = re.sub(r"\s+", " ", x)  # Remove extra spaces
-    return x.strip()
+def load_stereo(path: str, sr: int) -> np.ndarray:
+    audio, fs = librosa.load(path=path, sr=sr, mono=False)  # (l,)
+
+    if audio.ndim == 1:
+        return np.repeat(audio[None, :], repeats=2, axis=0)  # (2, l)
+    
+    elif audio.ndim == 2:
+        if audio.shape[0] == 1:
+            return np.repeat(audio[None, :], repeats=2, axis=0)  # (2, l)
+
+        if audio.shape[0] == 2:
+            return audio
+            
+        else:
+            return np.repeat(np.mean(audio, axis=0, keepdims=True), repeats=2, axis=0)  # (2, l)
+
+
+# def normalize_text(x: str) -> str:
+#     from IPython import embed; embed(using=False); os._exit(0)
+#     x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only
+#     x = re.sub(r"\s+", " ", x)  # Remove extra spaces
+#     return x.strip()
