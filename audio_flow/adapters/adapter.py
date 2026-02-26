@@ -18,9 +18,9 @@ class Adapter(nn.Module):
         self.t5_aligner = Aligner(self.t5_encoder.dim, dim, max_length)
 
         # TTS encoder
-        self.tts_encoder = CharEncoder()
-        self.tts_embedder = nn.Embedding(self.tts_encoder.vocab_size, dim)
-        self.tts_aligner = Aligner(dim, dim, max_length)
+        self.char_encoder = CharEncoder()
+        self.char_embedder = nn.Embedding(self.char_encoder.vocab_size, dim)
+        self.char_aligner = Aligner(dim, dim, max_length)
         
         # CLAP
         self.clap_text_encoder = CLAPTextEncoder()
@@ -50,6 +50,7 @@ class Adapter(nn.Module):
 
     def get_ttm_condition(self, data: dict, length: int) -> Tensor:
         r"""Get text to music condition."""
+
         task = self.t5_encoder(data["task"])
         task = task.mean(dim=1, keepdims=True).repeat(1, length, 1)  # (b, l, d)
 
@@ -63,12 +64,13 @@ class Adapter(nn.Module):
 
     def get_tts_condition(self, data: dict, length: int) -> Tensor:
         r"""Get text to speech condition."""
+
         task = self.t5_encoder(data["task"])
         task = task.mean(dim=1, keepdims=True).repeat(1, length, 1)  # (b, l, d)
-
-        content = self.tts_encoder(data["content"])  # (b, l', d)
-        content = self.tts_embedder(content)
-        content = self.tts_aligner(content, length)  # (b, l, d)
+        
+        content = self.char_encoder(data["content"])  # (b, l', d)
+        content = self.char_embedder(content)
+        content = self.char_aligner(content, length)  # (b, l, d)
 
         return task + content
 
