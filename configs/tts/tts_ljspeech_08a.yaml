@@ -20,7 +20,7 @@ dataset:
     name: MetaDataset
 
 base:
-    name: Transformer
+    name: Transformer3
     in_dim: 64
     dim: &dim 768
     num_layers: 12
@@ -28,7 +28,7 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: Adapter3_ConvNeXt
     dim: *dim
     max_length: 1000
 

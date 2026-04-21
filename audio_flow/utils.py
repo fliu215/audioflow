@@ -194,6 +194,31 @@ def load_stereo(path: str, sr: int) -> np.ndarray:
             return np.repeat(np.mean(audio, axis=0, keepdims=True), repeats=2, axis=0)  # (2, l)
 
 
+def build_attention_mask(mask):
+    r"""Build mask."""
+    return mask[:, None, :, None] * mask[:, None, None, :]  # (b, 1, l, l)
+
+
+def euler_solver(
+    model: nn.Module, 
+    noise: Tensor, 
+    controls: dict, 
+    cfg_scale: float,
+    n_steps: int
+) -> Tensor:
+
+    t = torch.linspace(0, 1, n_steps, device=noise.device)
+    x = noise
+    
+    for i in range(len(t) - 1):
+        dt = t[i + 1] - t[i]
+        dx = model(t[i], x, controls, cfg_scale)   # f(t, x)
+        x = x + dt * dx              # Euler update
+
+    return x
+
+
+
 # def normalize_text(x: str) -> str:
 #     from IPython import embed; embed(using=False); os._exit(0)
 #     x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only

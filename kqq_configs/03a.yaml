@@ -2,19 +2,21 @@
 clip_duration: 10.
 
 train_jsonls:
-  - path: "./jsonls/tts/train/ljspeech.jsonl"
+  - path: "./jsonls/ttm/train/gtzan.jsonl" 
+    weight: 1.0
+  - path: "./jsonls/ttm/train/gtzan.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
-  path: "./jsonls/tts/train/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/ttm/train/gtzan.jsonl"
+    num: 10
 
 validate_test_jsonl:
-  path: "./jsonls/tts/test/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/ttm/test/gtzan.jsonl"
+    num: 10
 
 sampler: 
-    name: BatchJsonlSampler
+    name: JsonlSampler
 
 dataset: 
     name: MetaDataset
@@ -28,7 +30,7 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: AdapterFinetune
     dim: *dim
     max_length: 1000
 
@@ -39,8 +41,8 @@ train:
     optimizer: AdamW
     lr: 1e-4
     warm_up_steps: 1000  # Leave blank if no warm up is used
-    batch_size_per_device: 8
+    batch_size_per_device: 16
     test_every_n_steps: 10000
-    save_every_n_steps: 100000
-    training_steps: 2000000
-    resume_ckpt_path:  # Leave blank if train from scratch
+    save_every_n_steps: 50000
+    training_steps: 500000
+    resume_ckpt_path:  "checkpoints/train/ttm_gtzan/step=0_ema.pth"

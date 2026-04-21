@@ -60,19 +60,14 @@ def get_tts_data(meta: dict, clip_duration: float) -> dict:
     clip_frames = round(clip_duration * fps)
 
     bgn = random_bgn_frame(total_frames, clip_frames)
-    latent, mask, length = load_latent(path, bgn, clip_frames)
-
+    latent, length = load_latent(path, bgn, clip_frames)
+    
     data = {
         "task": task,
         "content": content,
         "target_audio_latent": latent,
-        "target_audio_mask": mask,
         "latent_length": length
     }
-
-    # import pickle
-    # pickle.dump(latent, open("_zz.pkl", "wb"))
-    # from IPython import embed; embed(using=False); os._exit(0)
     return data
 
 
@@ -136,8 +131,6 @@ def load_latent(path: str, bgn: int, clip_frames: int) -> tuple[np.ndarray, int]
     with h5py.File(path, 'r') as hf:
         latent = hf["latent"][:, bgn : bgn + clip_frames]
         length = latent.shape[-1]
+        latent = librosa.util.fix_length(data=latent, size=clip_frames, axis=-1, mode="edge")
 
-        latent = librosa.util.fix_length(data=latent, size=clip_frames, axis=-1)
-        mask = librosa.util.fix_length(np.ones(length, dtype=bool), size=clip_frames, axis=-1)
-
-    return latent, mask, length
+    return latent, length

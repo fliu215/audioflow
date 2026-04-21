@@ -103,13 +103,12 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: Adapter2
     dim: *dim
     max_length: 1000
 
 train:
     device: cuda
-    # num_workers: 16
     num_workers: 0
     precision: "no"  # "no" (fp32) | "bf16"
     optimizer: AdamW

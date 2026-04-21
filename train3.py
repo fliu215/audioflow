@@ -8,6 +8,7 @@ from typing import Iterable, Literal
 import matplotlib.pyplot as plt
 import soundfile
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.optim as optim
 import torchdiffeq
@@ -17,7 +18,7 @@ from torchcfm.conditional_flow_matching import ConditionalFlowMatcher
 from tqdm import tqdm
 
 import wandb
-from audio_flow.datasets.dataset import MetaDataset
+from audio_flow.datasets.dataset3 import MetaDataset3
 from audio_flow.encoders.audio.levo_vae import LevoVAE
 from audio_flow.samplers.jsonl_sampler import JsonlSampler, BatchJsonlSampler
 from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
@@ -86,20 +87,20 @@ def train(args) -> None:
 
         # ------ 1. Data preparation ------
         # 1.1 Data
-        data = truncate_latent(data)
-        x_real = data["target_audio_latent"].to(device)
-        noise = torch.randn_like(x_real)
-        length = noise.shape[-1]
-        # print(x_real.shape)
+        # data = truncate_latent(data)
+        data = to_device(data, device)
 
+        x_real = data["target_latent"]
+        noise = torch.randn_like(x_real)
+        
         # 1.2 Get input and velocity
         t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
 
         # ------ 2. Training ------
         # 2.1 Forward
         model.train()
-        c = model.adapter(data, length)
-        vt = model.base(t=t, x=xt, c=c)
+        controls = model.adapter(data)
+        vt = model.base(t=t, x=xt, controls=controls)
 
         # 2.2 Loss
         loss = torch.mean((vt - ut) ** 2)
@@ -151,8 +152,14 @@ def train(args) -> None:
         step += 1
 
 
-def truncate_latent(data):
-    data["target_audio_latent"] = data["target_audio_latent"][:, :, 0 : max(data["latent_length"])]
+# def truncate_latent(data):
+#     data["target_audio_latent"] = data["target_audio_latent"][:, :, 0 : max(data["latent_length"])]
+#     return data
+
+def to_device(data: dict, device) -> dict:
+    for key, value in data.items():
+        if isinstance(value, Tensor):
+            data[key] = value.to(device)
     return data
 
 
@@ -178,7 +185,7 @@ def get_dataset(configs: dict) -> Dataset:
     name = configs["dataset"]["name"]
     
     if name == "MetaDataset":
-        return MetaDataset(configs["clip_duration"])
+        return MetaDataset3(configs["clip_duration"])
 
     else:
         raise ValueError(name)
@@ -234,6 +241,10 @@ def get_base(
         from audio_flow.models.transformer import Transformer
         return Transformer(**configs["base"])
 
+    elif name == "Transformer3":
+        from audio_flow.models.transformer3 import Transformer3
+        return Transformer3(**configs["base"])
+
     else:
         raise ValueError(name)    
 
@@ -263,6 +274,26 @@ def get_adapter(
     elif name == "Adapter_ljspeech_03":
         from audio_flow.adapters.adapter_ljspeech_03 import Adapter_ljspeech_03
         return Adapter_ljspeech_03(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04":
+        from audio_flow.adapters.adapter_ljspeech_04 import Adapter_ljspeech_04
+        return Adapter_ljspeech_04(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04b":
+        from audio_flow.adapters.adapter_ljspeech_04b import Adapter_ljspeech_04b
+        return Adapter_ljspeech_04b(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04b2":
+        from audio_flow.adapters.adapter_ljspeech_04b2 import Adapter_ljspeech_04b2
+        return Adapter_ljspeech_04b2(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04c":
+        from audio_flow.adapters.adapter_ljspeech_04c import Adapter_ljspeech_04c
+        return Adapter_ljspeech_04c(**configs["adapter"])
+
+    elif name == "Adapter3":
+        from audio_flow.adapters.adapter3 import Adapter3
+        return Adapter3(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -318,19 +349,19 @@ def validate(
         # 1.1 Get Data
         data = dataset[metas[i]]
         data = default_collate([data])
+        data = to_device(data, device)
 
         # 2.1 Sample noise
-        x_real = data["target_audio_latent"].to(device)
+        x_real = data["target_latent"]
         noise = torch.randn_like(x_real)
-        length = noise.shape[-1]
         
         # ------ 2. Forward with ODE ------
         # 2.1 Iteratively forward
         with torch.no_grad():
             model.eval()
-            c = model.adapter(data, length).to(device)
+            controls = model.adapter(data)
             traj = torchdiffeq.odeint(
-                lambda t, x: model.base(t, x, c),
+                lambda t, x: model.base(t, x, controls),
                 y0=noise,
                 t=torch.linspace(0, 1, 2, device=device),
                 atol=1e-4,
@@ -341,8 +372,8 @@ def validate(
         x_gen = traj[-1]  # (b, t, d)
         
         # Decode audio from VAE latents
-        audio_gen = vae.decode(x_gen).data.cpu().numpy()[0]  # (c, l)
-        audio_gt = vae.decode(x_real).data.cpu().numpy()[0]  # (c, l)
+        audio_gen = vae.decode(x_gen.permute(0, 2, 1)).data.cpu().numpy()[0]  # (c, l)
+        audio_gt = vae.decode(x_real.permute(0, 2, 1)).data.cpu().numpy()[0]  # (c, l)
         
         if "input_audio_latent" in data.keys(): 
             x_in = data["input_audio_latent"].to(device)

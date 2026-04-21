@@ -5,7 +5,7 @@ import librosa
 import numpy as np
 
 
-class MetaDataset:
+class MetaDataset3:
     def __init__(self, clip_duration: float):
         self.clip_duration = clip_duration
 
@@ -39,14 +39,16 @@ def get_ttm_data(meta: dict, clip_duration: float) -> dict:
     clip_frames = round(clip_duration * fps)
 
     bgn = random_bgn_frame(total_frames, clip_frames)
-    latent, length = load_latent(path, bgn, clip_frames)
+    latent, mask, length = load_latent(path, bgn, clip_frames)
 
     data = {
         "task": task,
         "prompt": prompt,
-        "target_audio_latent": latent,
-        "latent_length": length
+        "target_latent": latent.T,
+        "target_mask": mask,
+        "target_length": length
     }
+
     return data
 
 
@@ -64,10 +66,10 @@ def get_tts_data(meta: dict, clip_duration: float) -> dict:
 
     data = {
         "task": task,
-        "content": content,
-        "target_audio_latent": latent,
-        "target_audio_mask": mask,
-        "latent_length": length
+        "prompt": content,
+        "target_latent": latent.T,
+        "target_mask": mask,
+        "target_length": length
     }
 
     # import pickle
@@ -90,9 +92,10 @@ def get_tta_data(meta: dict, clip_duration: float) -> dict:
 
     data = {
         "task": task,
-        "prompt": prompt,
-        "target_audio_latent": latent,
-        "latent_length": length
+        "prompt": content,
+        "target_latent": latent.T,
+        "target_mask": mask,
+        "target_length": length
     }
     return data
 

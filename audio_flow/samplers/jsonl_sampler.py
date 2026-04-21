@@ -33,6 +33,7 @@ class JsonlSampler:
 
             meta = self.metas[i][j]
             # from IPython import embed; embed(using=False); os._exit(0)
+            # print(self.jsonl_paths[i]) 
             yield meta
 
     def random_indices(self, N: int) -> list[int]:
@@ -61,7 +62,7 @@ class BatchJsonlSampler:
             # Randomly sample a jsonl file
             i = random.choices(population=range(len(self.metas)), weights=self.weights, k=1)[0]
             batch_meta = []
-
+            
             for _ in range(self.batch_size):
                 # Reset pointer and shuffle indices
                 if self.ptrs[i] == len(self.metas[i]):

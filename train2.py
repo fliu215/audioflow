@@ -22,7 +22,7 @@ from audio_flow.encoders.audio.levo_vae import LevoVAE
 from audio_flow.samplers.jsonl_sampler import JsonlSampler, BatchJsonlSampler
 from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
                               load_jsonl, logmel, parse_yaml, requires_grad,
-                              update_ema)
+                              update_ema, build_attention_mask)
 
 
 def train(args) -> None:
@@ -84,13 +84,20 @@ def train(args) -> None:
 
     for step, data in enumerate(tqdm(train_dataloader)):
 
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # data["task"]
+        # data["content"]
+        # data["target_audio_latent"]
+        # data["target_audio_mask"]
+        # data["latent_length"]
+        
         # ------ 1. Data preparation ------
         # 1.1 Data
         data = truncate_latent(data)
-        x_real = data["target_audio_latent"].to(device)
-        noise = torch.randn_like(x_real)
-        length = noise.shape[-1]
-        # print(x_real.shape)
+        x_real = data["target_audio_latent"].to(device)  # (b, d, t)
+        padding_mask = data["target_audio_mask"].to(device)  # (b, t)
+        attn_mask = build_attention_mask(padding_mask)  # (b, 1, t, t)
+        noise = torch.randn_like(x_real)  # (b, d, t)
 
         # 1.2 Get input and velocity
         t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
@@ -98,11 +105,22 @@ def train(args) -> None:
         # ------ 2. Training ------
         # 2.1 Forward
         model.train()
-        c = model.adapter(data, length)
-        vt = model.base(t=t, x=xt, c=c)
+        c = model.adapter(data)
+        vt = model.base(t=t, x=xt, c=c, mask=attn_mask)
 
         # 2.2 Loss
-        loss = torch.mean((vt - ut) ** 2)
+        # loss = torch.mean((vt - ut) ** 2)
+        
+        mask = padding_mask[:, None, :].repeat(1, x_real.shape[1], 1)
+        loss = ((vt - ut) ** 2) * mask
+        loss = loss.sum() / mask.sum()
+
+
+        # from IPython import embed; embed(using=False); os._exit(0)
+        # weight = max(data["latent_length"]) / data["latent_length"]
+        # b1 = ((vt - ut) ** 2) * padding_mask[:, None, :]
+        # b1 = b1 / data["latent_length"][:, None, None].to(device)
+        # loss = b1.sum(-1).mean()
 
         # 2.3 Optimize
         optimizer.zero_grad()  # Reset all parameter.grad to 0
@@ -150,9 +168,10 @@ def train(args) -> None:
 
         step += 1
 
-
 def truncate_latent(data):
-    data["target_audio_latent"] = data["target_audio_latent"][:, :, 0 : max(data["latent_length"])]
+    max_length = max(data["latent_length"])
+    data["target_audio_latent"] = data["target_audio_latent"][:, :, 0 : max_length]
+    data["target_audio_mask"] = data["target_audio_mask"][:, 0 : max_length]
     return data
 
 
@@ -234,6 +253,10 @@ def get_base(
         from audio_flow.models.transformer import Transformer
         return Transformer(**configs["base"])
 
+    if name == "Transformer2":
+        from audio_flow.models.transformer2 import Transformer2
+        return Transformer2(**configs["base"])
+
     else:
         raise ValueError(name)    
 
@@ -255,14 +278,6 @@ def get_adapter(
     if name == "AdapterFinetune":
         from audio_flow.adapters.adapter_ft import AdapterFinetune
         return AdapterFinetune(**configs["adapter"])
-
-    elif name == "Adapter_ljspeech_02":
-        from audio_flow.adapters.adapter_ljspeech_02 import Adapter_ljspeech_02
-        return Adapter_ljspeech_02(**configs["adapter"])
-
-    elif name == "Adapter_ljspeech_03":
-        from audio_flow.adapters.adapter_ljspeech_03 import Adapter_ljspeech_03
-        return Adapter_ljspeech_03(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -319,8 +334,17 @@ def validate(
         data = dataset[metas[i]]
         data = default_collate([data])
 
+        # data = truncate_latent(data)
+        # x_real = data["target_audio_latent"].to(device)  # (b, d, t)
+        
+        # noise = torch.randn_like(x_real)  # (b, d, t)
+        # length = noise.shape[-1]
+
         # 2.1 Sample noise
+        data = truncate_latent(data)
         x_real = data["target_audio_latent"].to(device)
+        padding_mask = data["target_audio_mask"].to(device)
+        attn_mask = build_attention_mask(padding_mask)  # (b, 1, t, t)
         noise = torch.randn_like(x_real)
         length = noise.shape[-1]
         
@@ -328,9 +352,9 @@ def validate(
         # 2.1 Iteratively forward
         with torch.no_grad():
             model.eval()
-            c = model.adapter(data, length).to(device)
+            c = model.adapter(data).to(device)
             traj = torchdiffeq.odeint(
-                lambda t, x: model.base(t, x, c),
+                lambda t, x: model.base(t, x, c, attn_mask),
                 y0=noise,
                 t=torch.linspace(0, 1, 2, device=device),
                 atol=1e-4,

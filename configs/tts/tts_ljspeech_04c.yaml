@@ -28,7 +28,7 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: Adapter_ljspeech_04c
     dim: *dim
     max_length: 1000
 

@@ -1,0 +1,537 @@
+import torch
+import os
+from pathlib import Path
+import h5py
+import json
+import re
+import numpy as np
+from torchvision.io import read_video, write_video
+
+
+def add():
+    from transformers import T5Tokenizer, T5EncoderModel
+
+    tokenizer = T5Tokenizer.from_pretrained("t5-base")
+    encoder = T5EncoderModel.from_pretrained("t5-base")
+
+    text = [
+        "Task: video generation. Scene: a dog running on the beach."
+    ]
+
+    inputs = tokenizer(
+        text,
+        return_tensors="pt",
+        padding=True,
+        truncation=True
+    )
+
+    with torch.no_grad():
+        outputs = encoder(**inputs)
+
+    text_embeds = outputs.last_hidden_state
+    # shape: [B, L, 768]
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add2():
+
+    import torch
+    from transformers import AutoTokenizer, AutoModel
+    import torchaudio
+
+    device = "cuda"
+
+    model = AutoModel.from_pretrained("laion/clap-htsat-unfused")
+    tokenizer = AutoTokenizer.from_pretrained("laion/clap-htsat-unfused")
+    model.to(device)
+
+    # ---- 文本部分 ----
+    texts = [
+        "the sound of a cat", 
+        "a dog barking loudly"
+    ]
+    text_inputs = tokenizer(texts, padding=True, return_tensors="pt").to(device)
+
+    with torch.no_grad():
+        latent = model.get_text_features(**text_inputs)  # (b, d)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add3():
+
+    import torch
+    from transformers import CLIPTokenizer, CLIPTextModel
+
+    device = "cuda"
+
+    tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+    text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    # text_encoder.eval()  # frozen, 如果只是 inference
+
+    texts = [
+        "A dog running on the beach",
+        "A cat sitting on a sofa"
+    ]
+
+    tokens = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    tokens = {k: v.to(device) for k, v in tokens.items()}
+
+    with torch.no_grad():
+        latent = text_encoder(**tokens).last_hidden_state  # [B, T, D]
+
+    sentence_embeddings = latent.mean(dim=1)  # [B, D]
+
+
+def add4():
+
+    vae_dir = "datasets/gtzan_vae"
+
+    labels = sorted(os.listdir(Path(vae_dir, "genres")))
+
+    metas = []
+
+    for k, label in enumerate(labels):
+        
+        print("{}/{}".format(k, len(labels)))
+
+        paths = sorted(list(Path(vae_dir, "genres", label).glob("*.h5")))
+
+        for path in paths:
+
+            with h5py.File(path, 'r') as hf:
+                fps = hf.attrs["fps"]
+                n_frames = hf["latent"].shape[0]
+                duration = n_frames / fps
+
+            meta = {
+                "task": "text_to_music",
+                "dataset": "gtzan",
+                "input": {
+                    "text": {
+                        "prompt": label,
+                        "language": "en"
+                    }
+                },
+                "target": {
+                    "audio": {
+                        "path": str(path),
+                        "format": "levo_vae", 
+                        "fps": fps,
+                        "num_frames": n_frames,
+                        "duration": duration
+                    }
+                }
+            }
+            metas.append(meta)
+           
+    out_path = "_zz.jsonl"
+    with open(out_path, "w", encoding="utf-8") as f:
+        for meta in metas:
+            f.write(json.dumps(meta, ensure_ascii=False) + "\n")
+
+    print(f"Write out to {out_path}")
+
+
+def add5():
+    from ttstokenizer import TTSTokenizer
+
+    # tokenizer = TTSTokenizer()
+    # print(tokenizer("Text to tokenize"))
+
+    from ttstokenizer import IPATokenizer
+
+    tokenizer = IPATokenizer()
+    print(tokenizer("Text to tokenize"))
+    text = "Text to tokenize"
+
+    from IPython import embed; embed(using=False); os._exit(0)
+    tokens = tokenizer.super().__call__(text)
+
+    vocab = tokenizer.ipavocab()
+
+    # Map ARPABET tokens to IPA tokens and join as a string
+
+    text = "".join(vocab.get(x, x) for x in tokens)
+    
+    
+    # IPA token lookup
+    tokens = tokenizer.ipatokens()
+
+    # Lookup token ids and return
+    a1 =  np.array([tokens.get(x, x) for x in text], dtype=np.int64) if self.tokenize else text
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+VOCAB = [
+    "<pad>", "<bos>", "<eos>", "<sil>",
+
+    # vowels
+    "i", "ɪ", "e", "ɛ", "æ", "ɑ", "ɔ", "o", "ʊ", "u",
+    "ʌ", "ə", "ɜ", "ɚ",
+
+    # consonants
+    "p", "b", "t", "d", "k", "g",
+    "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "h",
+    "m", "n", "ŋ",
+    "l", "r", "j", "w",
+    "tʃ", "dʒ",
+
+    # suprasegmentals
+    "ˈ", "ˌ", "ː", " "
+]
+
+phoneme2id = {p: i for i, p in enumerate(VOCAB)}
+id2phoneme = {i: p for i, p in enumerate(VOCAB)}  
+
+
+def add6():
+    from phonemizer import phonemize
+
+    phones = phonemize(
+        ["Hello world!", "ds few"],
+        language="en-us",
+        backend="espeak",
+        strip=True,
+        preserve_punctuation=False,
+        with_stress=True
+    )
+    print(phones)
+    # ids = [phoneme2id[p] for p in phones]
+    # print(ids)
+    # a1 = [id2phoneme[id] for id in ids]
+    # print(a1)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def normalize_text(x: str) -> str:
+    x = re.sub(r"[^\w\s]", " ", x.lower())  # Remain char and digit only
+    x = re.sub(r"\s+", " ", x)  # Remove extra spaces
+    return x.strip()
+
+
+def add7():
+    a1 = normalize_text("asdf ewio',asdfpi jiavem.")
+    print(a1)
+
+
+def add8():
+
+    from transformers import CLIPProcessor, CLIPModel
+
+    device = "cuda"
+
+    model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+    # image = Image.open("image.jpg")
+    # image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+    image = [np.random.randint(0, 255, (480, 720, 3), dtype=np.uint8) for _ in range(4)]
+
+    inputs = processor(
+        text=["a dog", "a cat"],
+        images=image,
+        return_tensors="pt",
+        padding=True
+    ).to(device)
+
+    outputs = model(**inputs)
+    logits = outputs.logits_per_image
+    probs = logits.softmax(dim=1)
+
+    print(probs)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add9():
+
+    from transformers import CLIPProcessor, CLIPModel
+
+    device = "cuda"
+
+    model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+    # image = Image.open("image.jpg")
+    # image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+    path = "/datasets/AVE/AVE_Dataset/AVE/DTWkL01Z8So.mp4"
+    video, _, info = read_video(path, output_format="TCHW", pts_unit="sec")
+    from IPython import embed; embed(using=False); os._exit(0)
+
+    inputs = processor(
+        text=["a dog", "a cat"],
+        images=image,
+        return_tensors="pt",
+        padding=True
+    ).to(device)
+
+    outputs = model(**inputs)
+    logits = outputs.logits_per_image
+    probs = logits.softmax(dim=1)
+
+    print(probs)
+
+
+def add10():
+    path = "/datasets/AVE/AVE_Dataset/AVE/DTWkL01Z8So.mp4"
+    os.system(f'ffmpeg -i {path} -vf "minterpolate=fps=25" _tmp.mp4') 
+
+
+def add11():
+
+    from torch import Tensor
+    from audio_flow.encoders.audio.levo_vae import LevoVAE
+    device = "cpu"
+    vae = LevoVAE().to(device)
+    vae.eval()
+
+    x = Tensor(np.zeros((1, 2, 96000*2))).to(device)
+    y = vae.encode(x)
+
+    z = vae.decode(y)
+
+    z = vae.decode(torch.zeros_like(y))
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add12():
+
+    from audio_flow.utils import load_jsonl
+    from collections import Counter
+
+    path = "/home/qiuqiangkong/my_code_202308-/audio_flow4/jsonls/tts/train/libritts_train-other-500.jsonl"
+    metas = load_jsonl(path)
+
+    strs = [meta["input"]["text"]["content"] for meta in metas]
+
+    # a1 = list(set(list("".join(strs).lower())))
+    char_count = Counter("".join(strs).lower())
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+def add13():
+
+    from audio_flow.utils import load_jsonl
+    from audio_flow.encoders.text.char import VOCAB
+
+    path = "/home/qiuqiangkong/my_code_202308-/audio_flow4/jsonls/tts/train/libritts_train-clean-100.jsonl"
+    metas = load_jsonl(path)
+    tmp = []
+    for meta in metas:
+        duration = meta["target"]["audio"]["duration"]
+        content = normalize_text(meta["input"]["text"]["content"], VOCAB)
+        n_chars = len(content)
+        tmp.append(n_chars / duration)
+    print(np.mean(tmp))
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def normalize_text(text: str, vocab) -> str:
+        return "".join(c for c in text.lower() if c in vocab)
+
+
+def add14():
+
+    import whisper
+
+    # 加载模型（可选: tiny, base, small, medium, large）
+    model = whisper.load_model("large")
+
+    # 识别音频
+    path = "./results/train3_trunc/tts_ljspeech_08a/steps=480000_ema/test,idx=0,prompt=Shortly before the day fixed for execution, Bishop made a full confession, the bulk of which bore the impress of truth,,gen.wav"
+    result = model.transcribe(path)
+
+    print(result["text"])
+
+
+def add15():
+
+    from datasets import load_dataset
+    captions = load_dataset("disco-eth/jamendo-fma-captions")
+
+    captions["train"][0]
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add16():
+
+    import torch
+    import librosa
+    from transformers import (
+        Qwen2_5OmniForConditionalGeneration,
+        AutoProcessor,
+        BitsAndBytesConfig
+    )
+
+    model_name = "Qwen/Qwen2.5-Omni-3B"
+
+    quant_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_quant_type="nf4"
+    )
+
+    model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
+        model_name,
+        device_map="auto",
+        quantization_config=quant_config
+    )
+
+    processor = AutoProcessor.from_pretrained(model_name)
+
+    audio, sr = librosa.load("../mss2/assets/music_10s.wav", sr=16000)
+
+    audio = audio[:5 * sr]
+
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    # 推理
+    outputs = model.generate(**inputs, max_new_tokens=128)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+    result = processor.batch_decode(outputs, skip_special_tokens=True)
+
+    print(result)
+
+
+def add16b():
+    import torch
+    import librosa
+    from transformers import (
+        Qwen2_5OmniForConditionalGeneration,
+        AutoProcessor,
+        BitsAndBytesConfig
+    )
+
+    model_name = "Qwen/Qwen2.5-Omni-3B"
+
+    # 4bit 量化
+    quant = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.float16,
+    )
+
+    model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
+        model_name,
+        device_map="auto",
+        quantization_config=quant
+    )
+
+    processor = AutoProcessor.from_pretrained(model_name)
+
+    # 读取音频
+    audio, sr = librosa.load("../mss2/assets/music_10s.wav", sr=16000)
+
+    # 建议限制长度
+    audio = audio[:1 * sr]
+    # audio = audio[:5 * sr]
+
+    inputs = processor(
+        text="Describe the music.",
+        audios=audio,
+        sampling_rate=sr,
+        return_tensors="pt"
+    )
+
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=64,
+        use_cache=False
+    )
+
+    caption = processor.batch_decode(outputs, skip_special_tokens=True)
+
+    print(caption)
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+def add17():
+
+    import nemo.collections.speechlm2 as slm
+
+    model = slm.models.SALM.from_pretrained("path/to/checkpoint").eval()
+
+    audio_signal, sr = torchaudio.load("music.wav")
+    audio_signal = audio_signal.to(model.device)
+
+    prompt = [{"role":"user","content":model.audio_locator_tag}]
+    output = model.generate(prompts=[prompt], audios=audio_signal, audio_lens=[audio_signal.shape[-1]])
+    print(model.tokenizer.ids_to_text(output[0]))
+
+
+def add19():
+
+    import torch
+    import librosa
+    from transformers import AutoProcessor, AutoModelForCausalLM
+
+    # 选用 LTU-small 这个音频 caption 模型
+    model_name = "LTU-lang/ltu-small-cap-en"
+
+    # 加载模型 & processor
+    processor = AutoProcessor.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.float16,
+        device_map="auto"
+    )
+
+    # 读取音频
+    audio, sr = librosa.load("../mss2/assets/music_10s.wav", sr=16000)
+
+    # 限制音频长度（建议 <= 8s）
+    audio = audio[:8 * sr]
+
+    # 构造输入
+    inputs = processor(
+        text="Describe the music.",
+        audios=audio,
+        sampling_rate=sr,
+        return_tensors="pt"
+    )
+
+    # 把输入移到 GPU
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+    # 推理生成 caption
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=80,
+        use_cache=False
+    )
+
+    # 解码输出
+    caption = processor.batch_decode(outputs, skip_special_tokens=True)
+
+    print("Generated Caption:", caption)
+
+
+def add19():
+
+    import soundfile
+    from audio_flow.encoders.audio.levo_vae import LevoVAE
+
+    device = "cuda"
+
+    if False:
+        z = torch.zeros((64, 250)).to(device)
+    else:
+        import pickle
+        z = pickle.load(open("_zz.pkl", "rb"))
+        z = torch.Tensor(z).to(device)
+
+    vae = LevoVAE().to(device)
+    y = vae.decode(z).data.cpu().numpy()[0]  # (c, l)
+    soundfile.write(file="_zz.wav", data=y[0], samplerate=48000)
+
+    from IPython import embed; embed(using=False); os._exit(0)
+
+
+if __name__ == '__main__':
+
+    add14()

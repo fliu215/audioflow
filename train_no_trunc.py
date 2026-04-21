@@ -86,11 +86,12 @@ def train(args) -> None:
 
         # ------ 1. Data preparation ------
         # 1.1 Data
-        data = truncate_latent(data)
+        # data = truncate_latent(data)
         x_real = data["target_audio_latent"].to(device)
         noise = torch.randn_like(x_real)
         length = noise.shape[-1]
         # print(x_real.shape)
+        # from IPython import embed; embed(using=False); os._exit(0)
 
         # 1.2 Get input and velocity
         t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
@@ -264,6 +265,22 @@ def get_adapter(
         from audio_flow.adapters.adapter_ljspeech_03 import Adapter_ljspeech_03
         return Adapter_ljspeech_03(**configs["adapter"])
 
+    elif name == "Adapter_ljspeech_04":
+        from audio_flow.adapters.adapter_ljspeech_04 import Adapter_ljspeech_04
+        return Adapter_ljspeech_04(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04b":
+        from audio_flow.adapters.adapter_ljspeech_04b import Adapter_ljspeech_04b
+        return Adapter_ljspeech_04b(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04b2":
+        from audio_flow.adapters.adapter_ljspeech_04b2 import Adapter_ljspeech_04b2
+        return Adapter_ljspeech_04b2(**configs["adapter"])
+
+    elif name == "Adapter_ljspeech_04c":
+        from audio_flow.adapters.adapter_ljspeech_04c import Adapter_ljspeech_04c
+        return Adapter_ljspeech_04c(**configs["adapter"])
+
     else:
         raise ValueError(name)    
 
@@ -323,7 +340,7 @@ def validate(
         x_real = data["target_audio_latent"].to(device)
         noise = torch.randn_like(x_real)
         length = noise.shape[-1]
-        
+
         # ------ 2. Forward with ODE ------
         # 2.1 Iteratively forward
         with torch.no_grad():

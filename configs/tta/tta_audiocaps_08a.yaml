@@ -2,16 +2,18 @@
 clip_duration: 10.
 
 train_jsonls:
-  - path: "./jsonls/tts/train/ljspeech.jsonl"
+  - path: "./jsonls/tta/train/audiocaps2.0.jsonl" 
+    weight: 1.0
+  - path: "./jsonls/tta/train/audiocaps2.0.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
-  path: "./jsonls/tts/train/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/tta/train/audiocaps2.0.jsonl"
+    num: 10
 
 validate_test_jsonl:
-  path: "./jsonls/tts/test/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/tta/test/audiocaps2.0.jsonl"
+    num: 10
 
 sampler: 
     name: BatchJsonlSampler
@@ -20,7 +22,7 @@ dataset:
     name: MetaDataset
 
 base:
-    name: Transformer
+    name: Transformer3
     in_dim: 64
     dim: &dim 768
     num_layers: 12
@@ -28,7 +30,7 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: Adapter3_ConvNeXt
     dim: *dim
     max_length: 1000
 

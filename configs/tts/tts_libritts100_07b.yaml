@@ -1,17 +1,23 @@
 ---
-clip_duration: 10.
+clip_duration: 30.
 
 train_jsonls:
-  - path: "./jsonls/tts/train/ljspeech.jsonl"
+  - path: "./jsonls/tts/train/libritts_train-clean-100/0-10000.jsonl"
     weight: 1.0
+  - path: "./jsonls/tts/train/libritts_train-clean-100/10000-20000.jsonl"
+    weight: 1.0
+  - path: "./jsonls/tts/train/libritts_train-clean-100/20000-30000.jsonl"
+    weight: 1.0
+  - path: "./jsonls/tts/train/libritts_train-clean-100/30000-33235.jsonl"
+    weight: 0.3236
 
 validate_train_jsonl:
-  path: "./jsonls/tts/train/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/tts/train/libritts_train-clean-100.jsonl"
+    num: 10
 
 validate_test_jsonl:
-  path: "./jsonls/tts/test/ljspeech.jsonl"
-  num: 10
+    path: "./jsonls/tts/test/libritts_test-clean.jsonl"
+    num: 10
 
 sampler: 
     name: BatchJsonlSampler
@@ -20,7 +26,7 @@ dataset:
     name: MetaDataset
 
 base:
-    name: Transformer
+    name: Transformer3
     in_dim: 64
     dim: &dim 768
     num_layers: 12
@@ -28,7 +34,7 @@ base:
     rope_len: 8192
 
 adapter:
-    name: Adapter
+    name: Adapter3
     dim: *dim
     max_length: 1000
 

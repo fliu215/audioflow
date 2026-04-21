@@ -19,10 +19,10 @@ from tqdm import tqdm
 import wandb
 from audio_flow.datasets.dataset import MetaDataset
 from audio_flow.encoders.audio.levo_vae import LevoVAE
-from audio_flow.samplers.jsonl_sampler import JsonlSampler, BatchJsonlSampler
+from audio_flow.samplers.jsonl_sampler import JsonlSampler
 from audio_flow.utils import (CombinedModel, LinearWarmUp, get_single_value,
                               load_jsonl, logmel, parse_yaml, requires_grad,
-                              update_ema)
+                              update_ema, normalize_text)
 
 
 def train(args) -> None:
@@ -44,7 +44,7 @@ def train(args) -> None:
     Path(ckpts_dir).mkdir(parents=True, exist_ok=True)
 
     # Sampler
-    batch_sampler = get_batch_sampler(configs)
+    train_sampler = get_sampler(configs)
 
     # Dataset
     train_dataset = get_dataset(configs)
@@ -52,7 +52,8 @@ def train(args) -> None:
     # Dataloader
     train_dataloader = DataLoader(
         dataset=train_dataset, 
-        batch_sampler=batch_sampler,
+        batch_size=configs["train"]["batch_size_per_device"], 
+        sampler=train_sampler,
         num_workers=configs["train"]["num_workers"], 
         pin_memory=True,
     )
@@ -86,11 +87,9 @@ def train(args) -> None:
 
         # ------ 1. Data preparation ------
         # 1.1 Data
-        data = truncate_latent(data)
         x_real = data["target_audio_latent"].to(device)
         noise = torch.randn_like(x_real)
         length = noise.shape[-1]
-        # print(x_real.shape)
 
         # 1.2 Get input and velocity
         t, xt, ut = fm.sample_location_and_conditional_flow(x0=noise, x1=x_real)
@@ -151,11 +150,6 @@ def train(args) -> None:
         step += 1
 
 
-def truncate_latent(data):
-    data["target_audio_latent"] = data["target_audio_latent"][:, :, 0 : max(data["latent_length"])]
-    return data
-
-
 def get_saveable_state_dict(model):
     save_dict = {}
 
@@ -184,28 +178,14 @@ def get_dataset(configs: dict) -> Dataset:
         raise ValueError(name)
 
 
-# def get_sampler(configs: dict) -> Iterable:
-#     r"""Get sampler."""
-#     name = configs["sampler"]["name"]
-
-#     if name == "JsonlSampler":
-#         paths = [meta["path"] for meta in configs["train_jsonls"]]
-#         weights = [meta["weight"] for meta in configs["train_jsonls"]]
-#         return JsonlSampler(paths, weights)
-
-#     else:
-#         raise ValueError(name)
-
-
-def get_batch_sampler(configs: dict) -> Iterable:
+def get_sampler(configs: dict) -> Iterable:
     r"""Get sampler."""
     name = configs["sampler"]["name"]
-    batch_size = configs["train"]["batch_size_per_device"]
 
-    if name == "BatchJsonlSampler":
+    if name == "JsonlSampler":
         paths = [meta["path"] for meta in configs["train_jsonls"]]
         weights = [meta["weight"] for meta in configs["train_jsonls"]]
-        return BatchJsonlSampler(paths, weights, batch_size)
+        return JsonlSampler(paths, weights)
 
     else:
         raise ValueError(name)
@@ -248,21 +228,9 @@ def get_adapter(
         from audio_flow.adapters.adapter import Adapter
         return Adapter(**configs["adapter"])
 
-    elif name == "Adapter2":
-        from audio_flow.adapters.adapter2 import Adapter2
-        return Adapter2(**configs["adapter"])
-
     if name == "AdapterFinetune":
         from audio_flow.adapters.adapter_ft import AdapterFinetune
         return AdapterFinetune(**configs["adapter"])
-
-    elif name == "Adapter_ljspeech_02":
-        from audio_flow.adapters.adapter_ljspeech_02 import Adapter_ljspeech_02
-        return Adapter_ljspeech_02(**configs["adapter"])
-
-    elif name == "Adapter_ljspeech_03":
-        from audio_flow.adapters.adapter_ljspeech_03 import Adapter_ljspeech_03
-        return Adapter_ljspeech_03(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -339,7 +307,7 @@ def validate(
             )
 
         x_gen = traj[-1]  # (b, t, d)
-        
+
         # Decode audio from VAE latents
         audio_gen = vae.decode(x_gen).data.cpu().numpy()[0]  # (c, l)
         audio_gt = vae.decode(x_real).data.cpu().numpy()[0]  # (c, l)
@@ -371,7 +339,7 @@ def validate(
         strs = [split, f"idx={i}"]
         for key in ["prompt", "content"]:
             if key in data.keys():
-                text = get_single_value(data[key])[0 : 150]
+                text = normalize_text(get_single_value(data[key]))[0 : 150]
                 strs.append("{}={}".format(key, text))
         stem = ",".join(strs)
         
