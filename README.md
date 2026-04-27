@@ -36,7 +36,7 @@ bash env.sh
 
 We start from a text to music example as follows.
 
-## 0. Download datasets
+## 1.1 Download datasets
 
 Download the dataset corresponding to the task. 
 
@@ -46,15 +46,7 @@ GTZAN (1.3 GB, 8 hours):
 bash ./scripts/download_gtzan.sh
 ```
 
-MUSDB18HQ (30 GB, 10 hours):
-
-```bash
-bash ./scripts/download_musdb18hq.sh
-```
-
-To download more datasets please see [scripts](scripts).
-
-## 1. Pre-extract VAE latents
+## 1.2 Pre-extract VAE latents
 
 ```bash
 for SPLIT in "train" "test"; do
@@ -65,37 +57,29 @@ for SPLIT in "train" "test"; do
 done
 ```
 
-## 2 Prepare JSONL files
+## 1.3 Prepare JSONL files
 
 ```bash
 for SPLIT in "train" "test"; do
-    python -m create_jsonl.ttm.gtzan \
-        --vae_dir="./latents/gtzan/${SPLIT}/audio" \
+    python -m create_jsonls.ttm.gtzan \
+        --latent_dir="./latents/gtzan/${SPLIT}/audio" \
         --out_path="./jsonls/ttm/${SPLIT}/gtzan.jsonl"
 done
 ```
 
-## 3. Train
+## 1.4 Train
 ```python
 CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
-## 4. Sample
+## 1.5 Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python sample.py \
-    --config="./configs/ttm/ttm_gtzan.yaml" \
+    --config="./kqq_configs/ttm/ttm_gtzan.yaml" \
     --ckpt_path="checkpoints/train/ttm_gtzan/step=200000_ema.pth" \
-    --task="text_to_music" \
+    --task="text to music" \
     --prompt="blues" \
-    --out_path="out.wav"
-```
-
-## Finetune
-
-If users wish to finetune on a new task with a new adapter, run this command for an example:
-
-```python
-CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/finetune/ft.yaml"
+    --out_path="out_ttm.wav"
 ```
 
 ## External links
