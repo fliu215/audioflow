@@ -246,7 +246,7 @@ for SPLIT in "train" "test"; do
 		--out_path="./jsonls/superresolution/${SPLIT}/musdb18hq.jsonl"
 done
 
-# superresolution, MUSDB18HQ
+# codec2audio, MUSDB18HQ
 for SPLIT in "train" "test"; do
 	python -m create_jsonls.codec2audio.musdb18hq \
 		--input_latent_dir="./latents/musdb18hq/${SPLIT}/mixture_dac" \
@@ -368,6 +368,14 @@ CUDA_VISIBLE_DEVICES=5 python sample.py \
 	--task="midi to audio" \
 	--input_path="./assets/piano.mid" \
 	--out_path="_zz_midi2audio.wav"
+
+# MIDI to audio
+# CUDA_VISIBLE_DEVICES=5 python sample.py \
+# 	--config="./configs/midi2audio/midi2audio_maestro.yaml" \
+# 	--ckpt_path="checkpoints/train/midi2audio_maestro/step=200000_ema.pth" \
+# 	--task="video to audio" \
+# 	--input_path="./assets/piano.mid" \
+# 	--out_path="_zz_midi2audio.wav"
 
 
 

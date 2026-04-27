@@ -2,15 +2,13 @@
 
 ### 1.1 Download datasets
 
-Download the dataset corresponding to the task. 
-
-GTZAN (1.3 GB, 8 hours):
+Download the GTZAN dataset (1.3 GB, 8 hours).
 
 ```bash
-bash ./scripts/download_gtzan.sh
+bash ./scripts/download_datasets/download_ljspeech.sh
 ```
 
-The downloaded dataset after compression looks like:
+The dataset structure after extraction is as follows:
 
 <pre>
 gtzan (1.3 GB)
@@ -56,7 +54,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ### 1.5 Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python sample.py \
-    --config="./kqq_configs/ttm/ttm_gtzan.yaml" \
+    --config="./configs/ttm/ttm_gtzan.yaml" \
     --ckpt_path="checkpoints/train/ttm_gtzan/step=200000_ema.pth" \
     --task="text to music" \
     --prompt="blues" \

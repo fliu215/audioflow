@@ -7,15 +7,15 @@ The supported tasks include:
 | Tasks                   | Supported    | Dataset    | How to run                                                  |
 |-------------------------|--------------|------------|--------------------------------------------------------------|
 | Text to music           | ✅           | GTZAN      | [docs/ttm.md](docs/ttm.md)                             |
-| Text to speech          | ✅           | LJSpeech <br> LibriTTS      | [scripts/tts/tts_ljspeech.sh](scripts/tts/tts_ljspeech.sh) <br> [scripts/tts/tts_libritts.sh](scripts/tts/tts_libritts.sh)                            |
-| Text to audio           | ✅           | Clotho <br> AudioCaps      | [scripts/tta/tta_clotho.sh](scripts/tta/tta_clotho.sh) <br> [scripts/tta/tta_audiocaps.sh](scripts/tta/tta_audiocaps.sh)                            |
-| MIDI to music           | ✅           | MAESTRO    | To appear                                                    |
-| Codec to audio          | ✅           | MUSDB18HQ  | [scripts/codec2audio/dac2stereo.sh](scripts/codec2audio/dac2stereo.sh)               |
-| Mono to stereo          | ✅           | MUSDB18HQ  | [scripts/mono2stereo/mono2stereo_musdb18hq.sh](scripts/mono2stereo/mono2stereo_musdb18hq.sh)             |
-| Super resolution        | ✅           | MUSDB18HQ  | [scripts/superresolution/superresolution_musdb18hq.sh](scripts/superresolution/superresolution_musdb18hq.sh)     |
-| Music source separation | ✅           | MUSDB18HQ  | [scripts/mss/mixture2vocals_musdb18hq.sh](scripts/mss/mixture2vocals_musdb18hq.sh)                             |
-| Vocals to music         | ✅           | MUSDB18HQ  | [scripts/vocals2audio/vocals2mixture.sh](scripts/vocals2audio/vocals2mixture.sh.sh)       |
-
+| Text to speech          | ✅           | LJSpeech   | [docs/tts.md](docs/tts.md)                           |
+| Text to audio           | ✅           | AudioCaps  | [docs/tta.md](docs/tta.md)                            |
+| Music source separation | ✅           | MUSDB18HQ  | [docs/mss.md](docs/mss.md)                             |
+| Mono to stereo          | ✅           | MUSDB18HQ  | [docs/mono2stereo.md](docs/mono2stereo.md)             |
+| Super resolution        | ✅           | MUSDB18HQ  | [docs/superresolution.md](docs/superresolution.md)     |
+| Vocals to music         | ✅           | MUSDB18HQ  | [docs/vocals2audio.md](docs/vocals2audio.md)       |
+| Audio editing           | ✅           | MUSDB18HQ  | [docs/editing.md](docs/editing.md)       |
+| MIDI to music           | ✅           | MAESTRO    | [docs/midi2music.md](docs/midi2music.md)  |
+| Video to audio          | ✅           | Audio-Visual Event    | [docs/video2audio.md](docs/video2audio.md)                                                    |
 
 ## 0. Install dependencies
 
@@ -38,15 +38,13 @@ bash env.sh
 
 ### 1.1 Download datasets
 
-Download the dataset corresponding to the task. 
-
-GTZAN (1.3 GB, 8 hours):
+Download the GTZAN dataset (1.3 GB, 8 hours).
 
 ```bash
-bash ./scripts/download_gtzan.sh
+bash ./scripts/download_datasets/download_gtzan.sh
 ```
 
-The downloaded dataset after compression looks like:
+The dataset structure after extraction is as follows:
 
 <pre>
 gtzan (1.3 GB)
@@ -92,7 +90,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ### 1.5 Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python sample.py \
-    --config="./kqq_configs/ttm/ttm_gtzan.yaml" \
+    --config="./configs/ttm/ttm_gtzan.yaml" \
     --ckpt_path="checkpoints/train/ttm_gtzan/step=200000_ema.pth" \
     --task="text to music" \
     --prompt="blues" \
