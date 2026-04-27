@@ -36,7 +36,7 @@ bash env.sh
 
 ## 1. Training a text to music system
 
-### 1.1 Download datasets
+## 1.1 Download datasets
 
 Download the dataset corresponding to the task. 
 
