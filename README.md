@@ -34,9 +34,9 @@ conda activate audio_flow
 bash env.sh
 ```
 
-We start from a text to music example as follows.
+## 1. Let's start from training a text to music system
 
-## 1.1 Download datasets
+### 1.1 Download datasets
 
 Download the dataset corresponding to the task. 
 
@@ -46,7 +46,7 @@ GTZAN (1.3 GB, 8 hours):
 bash ./scripts/download_gtzan.sh
 ```
 
-## 1.2 Pre-extract VAE latents
+### 1.2 Pre-extract VAE latents
 
 ```bash
 for SPLIT in "train" "test"; do
@@ -57,7 +57,7 @@ for SPLIT in "train" "test"; do
 done
 ```
 
-## 1.3 Prepare JSONL files
+### 1.3 Prepare JSONL files
 
 ```bash
 for SPLIT in "train" "test"; do
@@ -67,12 +67,12 @@ for SPLIT in "train" "test"; do
 done
 ```
 
-## 1.4 Train
+### 1.4 Train
 ```python
 CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
-## 1.5 Sample
+### 1.5 Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python sample.py \
     --config="./kqq_configs/ttm/ttm_gtzan.yaml" \
