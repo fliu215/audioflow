@@ -4,9 +4,9 @@ This repository contains a tutorial on audio generation using conditional flow m
 
 The supported tasks include:
 
-| Tasks                   | Supported    | Dataset    | Config yaml                                                  |
+| Tasks                   | Supported    | Dataset    | How to run                                                  |
 |-------------------------|--------------|------------|--------------------------------------------------------------|
-| Text to music           | ✅           | GTZAN      | [scripts/ttm/ttm_gtzan.sh](scripts/ttm/ttm_gtzan.sh)                             |
+| Text to music           | ✅           | GTZAN      | [docs/ttm.md](docs/ttm.md)                             |
 | Text to speech          | ✅           | LJSpeech <br> LibriTTS      | [scripts/tts/tts_ljspeech.sh](scripts/tts/tts_ljspeech.sh) <br> [scripts/tts/tts_libritts.sh](scripts/tts/tts_libritts.sh)                            |
 | Text to audio           | ✅           | Clotho <br> AudioCaps      | [scripts/tta/tta_clotho.sh](scripts/tta/tta_clotho.sh) <br> [scripts/tta/tta_audiocaps.sh](scripts/tta/tta_audiocaps.sh)                            |
 | MIDI to music           | ✅           | MAESTRO    | To appear                                                    |
@@ -36,7 +36,7 @@ bash env.sh
 
 ## 1. Training a text to music system
 
-## 1.1 Download datasets
+### 1.1 Download datasets
 
 Download the dataset corresponding to the task. 
 
@@ -46,7 +46,24 @@ GTZAN (1.3 GB, 8 hours):
 bash ./scripts/download_gtzan.sh
 ```
 
-## 1.2 Pre-extract VAE latents
+The downloaded dataset after compression looks like:
+
+<pre>
+gtzan (1.3 GB)
+└── genres
+    ├── blues (100 files)
+    ├── classical (100 files)
+    ├── country (100 files)
+    ├── disco (100 files)
+    ├── hiphop (100 files)
+    ├── jazz (100 files)
+    ├── metal (100 files)
+    ├── pop (100 files)
+    ├── reggae (100 files)
+    └── rock (100 files)
+</pre>
+
+### 1.2 Pre-extract VAE latents
 
 ```bash
 for SPLIT in "train" "test"; do
@@ -57,7 +74,7 @@ for SPLIT in "train" "test"; do
 done
 ```
 
-## 1.3 Prepare JSONL files
+### 1.3 Prepare JSONL files
 
 ```bash
 for SPLIT in "train" "test"; do
@@ -67,12 +84,12 @@ for SPLIT in "train" "test"; do
 done
 ```
 
-## 1.4 Train
+### 1.4 Train
 ```python
 CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
-## 1.5 Sample
+### 1.5 Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python sample.py \
     --config="./kqq_configs/ttm/ttm_gtzan.yaml" \
