@@ -1,4 +1,4 @@
-## 1. Training a MIDI to piano system
+## 1. Training a MIDI to Music System
 
 ### 1.1 Download datasets
 

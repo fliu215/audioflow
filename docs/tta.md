@@ -1,4 +1,4 @@
-## 1. Training a text to audio system
+## 1. Training a Text to Audio System
 
 ### 1.1 Download datasets
 

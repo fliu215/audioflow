@@ -1,4 +1,4 @@
-## 1. Training a super-resolution system
+## 1. Training a Super-resolution System
 
 ### 1.1 Download datasets
 

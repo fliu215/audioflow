@@ -1,4 +1,4 @@
-## 1. Training a music source separation system
+## 1. Training a Music Source Separation System
 
 ### 1.1 Download datasets
 

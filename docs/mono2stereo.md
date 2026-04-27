@@ -1,4 +1,4 @@
-## 1. Training a mono to stereo system
+## 1. Training a Mono to Stereo System
 
 ### 1.1 Download datasets
 

@@ -1,4 +1,4 @@
-## 1. Training a music editing system
+## 1. Training an Audio Editing system
 
 ### 1.1 Download datasets
 

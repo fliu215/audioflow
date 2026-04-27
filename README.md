@@ -12,7 +12,7 @@ The supported tasks include:
 | Music source separation | ✅           | MUSDB18HQ  | [docs/mss.md](docs/mss.md)                             |
 | Mono to stereo          | ✅           | MUSDB18HQ  | [docs/mono2stereo.md](docs/mono2stereo.md)             |
 | Super resolution        | ✅           | MUSDB18HQ  | [docs/superresolution.md](docs/superresolution.md)     |
-| Vocals to music         | ✅           | MUSDB18HQ  | [docs/vocals2audio.md](docs/vocals2audio.md)       |
+| Vocals to music         | ✅           | MUSDB18HQ  | [docs/vocals2music.md](docs/vocals2music.md)       |
 | Audio editing           | ✅           | MUSDB18HQ  | [docs/editing.md](docs/editing.md)       |
 | MIDI to music           | ✅           | MAESTRO    | [docs/midi2music.md](docs/midi2music.md)  |
 | Video to audio          | ✅           | Audio-Visual Event    | [docs/video2audio.md](docs/video2audio.md)                                                    |

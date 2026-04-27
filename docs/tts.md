@@ -1,4 +1,4 @@
-## 1. Training a text to speech system
+## 1. Training a Text to Speech System
 
 ### 1.1 Download datasets
 

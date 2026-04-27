@@ -1,4 +1,4 @@
-## 1. Training a video to audio system
+## 1. Training a Video to Audio System
 
 ### 1.1 Download datasets
 

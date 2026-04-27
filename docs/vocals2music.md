@@ -1,4 +1,4 @@
-## 1. Training a vocals to music system
+## 1. Training a Vocals to Music System
 
 ### 1.1 Download datasets
 
