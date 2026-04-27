@@ -166,8 +166,6 @@ def extract_latents_in_chunks(
     return np.concatenate(latents, axis=0)
 
 
-
-
 def compute_and_save_latents(
     audio: np.ndarray, 
     aug_repeats: int, 
@@ -199,7 +197,11 @@ def compute_and_save_latents(
         x = audio[:, jitter :]  # (2, l)
         latent = extract_latents_in_chunks(model, x, chunk_samples)  # (t, d)
 
-        out_path = str(base_path) + f"_{i:03d}_of_{aug_repeats:03d}.h5"
+        if aug_repeats == 1:
+            out_path = str(base_path) + ".h5"
+        else:
+            out_path = str(base_path) + f"_{i:03d}_of_{aug_repeats:03d}.h5"
+            
         with h5py.File(out_path, 'w') as hf:
             hf.create_dataset("latent", data=latent, dtype=dtype)
             hf.attrs.create("fps", data=model.fps, dtype=float)

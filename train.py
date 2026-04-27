@@ -202,6 +202,10 @@ def get_dataset(configs: dict) -> Dataset:
         from audio_flow.datasets.editing import EditingDataset
         return EditingDataset(configs["clip_duration"])
 
+    elif name == "Video2AudioDataset":
+        from audio_flow.datasets.video2audio import Video2AudioDataset
+        return Video2AudioDataset(configs["clip_duration"])
+
     else:
         raise ValueError(name)
 
@@ -295,7 +299,11 @@ def get_adapter(
 
     elif name == "EditingAdapter":
         from audio_flow.adapters.editing import EditingAdapter
-        return EditingAdapter(**configs["adapter"]) 
+        return EditingAdapter(**configs["adapter"])
+
+    elif name == "Video2AudioAdapter":
+        from audio_flow.adapters.video2audio import Video2AudioAdapter
+        return Video2AudioAdapter(**configs["adapter"])
 
     else:
         raise ValueError(name)    
@@ -364,7 +372,7 @@ def validate(
             model.eval()
             controls = model.adapter(data)
             x_gen = euler_solver(model.base, noise, controls, n_steps=100)  # (b, l, d)
-        
+
         # Decode audio from VAE latents
         audio_gen = vae.decode(x_gen).data.cpu().numpy()[0]  # (c, l)
         audio_gt = vae.decode(x_real).data.cpu().numpy()[0]  # (c, l)
@@ -386,11 +394,14 @@ def validate(
 
         fig, axs = plt.subplots(3, 1, figsize=(10, 10))
         vmin, vmax = -10, 5
+
         if audio_in is not None:
             axs[0].matshow(logmel_in.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+
         elif task in ["midi to audio"]:
             x_in = data["input_latent"].cpu().numpy()[0]
             axs[0].matshow(x_in.T, origin='lower', aspect='auto', cmap='jet', vmin=0., vmax=1.)
+
         axs[1].matshow(logmel_gen.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[2].matshow(logmel_gt.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
         axs[0].set_title("Input")
@@ -405,6 +416,9 @@ def validate(
                 strs.append("{}={}".format(key, text))
         stem = ",".join(strs)
         
+        if task in ["video to audio"]:
+            stem += ",id={}".format(Path(data["input_latent_path"][0]).stem)
+
         out_path = Path(out_dir, stem + ".png")
         plt.savefig(out_path)
         print(f"Write out to {out_path}")
