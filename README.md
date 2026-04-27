@@ -36,6 +36,8 @@ bash env.sh
 
 ## 1. Training a text to music system
 
+See [docs](docs) for more examples.
+
 ### 1.1 Download datasets
 
 Download the GTZAN dataset (1.3 GB, 8 hours).
