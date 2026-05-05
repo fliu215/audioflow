@@ -77,7 +77,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/editing/editing_musdb
 for STEM in "vocals" "bass" "drums" "other"; do
     CUDA_VISIBLE_DEVICES=0 python sample.py \
         --config="./configs/editing/editing_musdb18hq.yaml" \
-        --ckpt_path="checkpoints/train/editing_musdb18hq/step=500000_ema.pth" \
+        --ckpt_path="checkpoints/train/editing_musdb18hq/step=200000_ema.pth" \
         --task="audio editing" \
         --prompt="separate mixture into ${STEM}" \
         --input_path="./assets/music_10s.wav" \
