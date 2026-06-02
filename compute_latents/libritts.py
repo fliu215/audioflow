@@ -34,7 +34,7 @@ def compute_vae(args) -> None:
             with open(text_path, "r", encoding="utf-8") as f:
                 text = f.read()
 
-            audio = load_stereo(path, vae.sr)  # (2, l)
+            audio = load_stereo(audio_path, vae.sr)  # (2, l)
 
             chunk_samples = int(chunk_duration * vae.sr)
             base_path = Path(out_dir, audio_path.stem)
@@ -56,10 +56,12 @@ def compute_vae(args) -> None:
             pass
 
     # Write csv
+    # from IPython import embed; embed(using=False); os._exit(0)
     df = pd.DataFrame(meta_data)
     Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(csv_path, sep='\t', index=False)
     print(f"Write out to {csv_path}")
+
 
     
 if __name__ == '__main__':

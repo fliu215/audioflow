@@ -88,6 +88,9 @@ def train(args) -> None:
     
     for step, data in enumerate(tqdm(train_dataloader)):
 
+        data = cfg_drop(data, model.base.null_c, p=0.1, device=device)
+        # from IPython import embed; embed(using=False); os._exit(0)
+
         # ------ 1. Data preparation ------
         # 1.1 Data
         data = truncate_latent(data)
@@ -153,7 +156,6 @@ def train(args) -> None:
             break
 
         step += 1
-        
 
 
 def get_dataset(configs: dict) -> Dataset:
@@ -353,6 +355,36 @@ def get_optimizer_and_scheduler(
     return optimizer, scheduler
 
 
+
+def cfg_drop(data: dict, null_c: Tensor, p=0.1, mask=None, device=None):
+    
+    B = len(data["task"])
+    # device = data["target_latent"].device
+
+    if mask is None:
+        mask = torch.rand(B, device=device) < p  # (b,)
+
+    out = {}
+    
+    for key in data.keys():
+        if key in ["prompt", "input_latent_path"]:
+            out[key] = ["" if mask[i].item() else data[key][i] for i in range(B)] 
+        
+        elif key in ["task", "target_latent",  "target_mask", "target_length"]:
+            out[key] = data[key]
+
+        elif key in ["input_latent"]:
+            B, L, D = data[key].shape
+            from IPython import embed; embed(using=False); os._exit(0)
+            out[key] = null_c[None, None, :].expand(B, L, D)
+
+        else:
+            raise NotImplementedError(key)
+        
+    assert out.keys() == data.keys()
+    return out
+
+
 def validate(
     configs: dict,
     model: nn.Module,
@@ -380,23 +412,27 @@ def validate(
         # ------ 1. Data preparation ------
         # 1.1 Get Data
         data = dataset[metas[i]]
-        data = default_collate([data])
-        data = truncate_latent(data)
-        data = to_device(data, device)
+        data = default_collate([data, data])  # (2,)
+
+        # Drop controls for cfg
+        data = cfg_drop(data, model.base.null_c, mask=Tensor([0, 1]), device=device)  # (2,)
+
+        data = truncate_latent(data)  # (2,)
+        data = to_device(data, device)  # (2,)
+
+        with torch.no_grad():
+            model.eval()
+            controls = model.adapter(data)  # (2,)
 
         # 2.1 Sample noise
-        x_real = data["target_latent"]  # (b, t, d)
-        noise = torch.randn_like(x_real)  # (b, l, d)
+        x_real = data["target_latent"][0 : 1]  # (1, t, d)
+        noise = torch.randn_like(x_real)  # (1, l, d)
 
         # ------ 2. Forward with ODE ------
         # 2.1 Iteratively forward
-        try:
-            with torch.no_grad():
-                model.eval()
-                controls = model.adapter(data)
-                x_gen = euler_solver(model.base, noise, controls, n_steps=100)  # (b, l, d)
-        except:
-            from IPython import embed; embed(using=False); os._exit(0)
+        with torch.no_grad():
+            model.eval()
+            x_gen = euler_solver_cfg(model.base, noise, controls, n_steps=100)  # (b, l, d)
 
         # Decode audio from VAE latents
         audio_gen = vae.decode(x_gen).data.cpu().numpy()[0]  # (c, l)
@@ -437,7 +473,8 @@ def validate(
         strs = [split, f"idx={i}"]
         for key in ["task", "prompt"]:
             if key in data.keys():
-                text = get_single_value(data[key])[0 : 150]
+                # text = get_single_value(data[key])[0 : 150]
+                text = data[key][0][0 : 150]
                 strs.append("{}={}".format(key, text))
         stem = ",".join(strs)
         
@@ -461,6 +498,41 @@ def validate(
         out_path = Path(out_dir, stem + ",gt.wav")
         soundfile.write(file=out_path, data=audio_gt.T, samplerate=vae.sr)
         print(f"Write out to {out_path}")
+
+
+# @torch.no_grad()
+# def cfg_pred(model, t, x, controls, cfg_scale=4.0):
+#     x = torch.cat([x, x], dim=0)
+#     u, c = model(t=t, x=x, controls=controls).chunk(2, dim=0)
+#     pred = u + cfg_scale * (c - u)
+#     return pred
+
+
+@torch.no_grad()
+def cfg_pred(model, t, x, controls, cfg_scale=4.0):
+    # from IPython import embed; embed(using=False); os._exit(0)
+    x = torch.cat([x, x], dim=0)
+    c, u = model(t=t, x=x, controls=controls).chunk(2, dim=0)
+    pred = u + cfg_scale * (c - u)
+    return pred
+
+
+def euler_solver_cfg(
+    model: nn.Module, 
+    noise: Tensor, 
+    controls: dict, 
+    n_steps: int,
+) -> Tensor:
+
+    t = torch.linspace(0, 1, n_steps, device=noise.device)
+    x = noise
+    
+    for i in range(len(t) - 1):
+        dt = t[i + 1] - t[i]
+        dx = cfg_pred(model, t[i], x, controls)   # f(t, x)
+        x = x + dt * dx              # Euler update
+
+    return x
 
 
 if __name__ == "__main__":

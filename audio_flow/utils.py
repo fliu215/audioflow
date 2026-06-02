@@ -19,6 +19,15 @@ def load_vae(vae_type: str) -> nn.Module:
     if vae_type == "levo_vae":
         from audio_flow.encoders.audio.levo_vae import LevoVAE
         return LevoVAE()
+
+    elif vae_type == "architts_vae":
+        from audio_flow.encoders.audio.architts_vae import ArchiTTSVAE
+        return ArchiTTSVAE()
+
+    elif vae_type == "mmaudio_vae":
+        from audio_flow.encoders.audio.mmaudio_vae import MMAudioVAE
+        return MMAudioVAE()
+
     else:
         raise ValueError(vae_type)
 

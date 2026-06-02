@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path
 
 import h5py
-import pandas as pd
 
 from audio_flow.utils import write_jsonl
 
@@ -10,9 +9,8 @@ from audio_flow.utils import write_jsonl
 def create_jsonl(args):
 
     # Arguments
-    text_dir = args.text_dir
-    input_latent_dir = args.video_latent_dir
-    target_latent_dir = args.audio_latent_dir
+    input_latent_dir = args.input_latent_dir
+    target_latent_dir = args.target_latent_dir
     out_path = args.out_path
     task = args.task
 
@@ -26,6 +24,8 @@ def create_jsonl(args):
     input_paths = [Path(input_latent_dir, name) for name in names]
     target_paths = [Path(target_latent_dir, name) for name in names]
     metas = []
+    
+    from IPython import embed; embed(using=False); os._exit(0)
 
     for n in range(len(names)):
         if n % 100 == 0: 
@@ -34,16 +34,10 @@ def create_jsonl(args):
         input_attrs = get_attrs_from_hdf5(input_paths[n])
         target_attrs = get_attrs_from_hdf5(target_paths[n])
 
-        text_path = Path(text_dir, Path(names[n]).with_suffix(".txt"))
-        df = pd.read_csv(text_path, sep='\t', header=None)
-        caption = df[0].values[0]
-
         meta = {
             "task": task,
             "input": {
-                "text": {
-                    "prompt": caption,
-                },
+                "text": {},
                 "video": {
                     "latent_path": str(input_paths[n]),
                     "latent_type": input_attrs["latent_type"], 
@@ -84,9 +78,8 @@ def get_attrs_from_hdf5(path: str) -> dict:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--text_dir", type=str, required=True)
-    parser.add_argument("--video_latent_dir", type=str, required=True)
-    parser.add_argument("--audio_latent_dir", type=str, required=True)
+    parser.add_argument("--input_latent_dir", type=str, required=True)
+    parser.add_argument("--target_latent_dir", type=str, required=True)
     parser.add_argument("--out_path", type=str, required=True)
     args = parser.parse_args()
 

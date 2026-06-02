@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from audio_flow.encoders.audio.levo_vae import LevoVAE
+from audio_flow.encoders.audio.architts_vae import ArchiTTSVAE
 from audio_flow.utils import load_vae, load_stereo, compute_and_save_latents
 
 

@@ -21,6 +21,10 @@ sampler:
 dataset: 
     name: MSSDataset
 
+validate:
+    vae: levo_vae
+
+
 # latent:
 #     name: "levo_vae"
 #     in_dim: &in_dim 64
