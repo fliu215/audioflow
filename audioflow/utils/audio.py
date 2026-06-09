@@ -38,7 +38,7 @@ def sample_start_frame(total_frames: int, clip_frames: int) -> int:
     return random.randint(0, max_start)
 
 
-def load_latent(path, start: int, clip_frames: int) -> tuple[np.ndarray, np.ndarray, int]:
+def load_latent(path, start: int, clip_frames: int) -> tuple[np.ndarray, np.ndarray]:
     r"""Load latent from hdf5."""
     with h5py.File(path, 'r') as hf:
         x = hf["data"][start : start + clip_frames, :]  # (l, d)
@@ -48,7 +48,7 @@ def load_latent(path, start: int, clip_frames: int) -> tuple[np.ndarray, np.ndar
         mask = np.zeros(clip_frames, dtype=bool)  # (l,)
         mask[:length] = True
 
-    return x, mask, length
+    return x, mask
 
 
 def extract_and_save_audio_features(
@@ -80,7 +80,7 @@ def extract_and_save_audio_features(
                 
         jitter = round((i / aug_repeats) * (model.sr / model.fps))
         x = audio[:, jitter :]  # (c, l)
-        feat = extract_features(model, x, chunk_samples)  # (t, d)
+        feat = extract_features_in_chunks(model, x, chunk_samples)  # (t, d)
 
         aug_path = augment_path(out_path, i)
 
@@ -93,7 +93,7 @@ def extract_and_save_audio_features(
         print(f"Write out to {aug_path} {feat.shape}")
 
 
-def extract_features(
+def extract_features_in_chunks(
     model: nn.Module, 
     audio: np.ndarray, 
     chunk_samples: int,

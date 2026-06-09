@@ -9,9 +9,24 @@ def requires_grad(model: nn.Module, flag=True) -> None:
 
 
 def trim_target_latent(data: dict) -> dict:
+    r"""Trim target latent to maximum length in a batch.
+    """
+    max_len = get_target_length(data["target_mask"]).max()
     for k in ["target_latent", "target_mask"]:
-        data[k] = data[k][:, 0 : max(data["target_length"])]
+        data[k] = data[k][:, 0 : max_len]  # (..., max_len)
     return data
+
+
+def get_target_length(mask: Tensor) -> Tensor:
+    r"""Get sequence length from mask.
+
+    Args:
+        mask (bool): (..., l)
+
+    Returns:
+        len: (...,)
+    """
+    return mask.sum(-1)
 
 
 def to_device(data: dict, device) -> dict:
@@ -35,6 +50,18 @@ def mean(x: Tensor, mask: Tensor) -> torch.float:
     return out.mean()
 
 
+def stretched_eye(n: int, m: int, device):
+    if n == m:
+        return torch.eye(n, dtype=torch.bool, device=device)
+    if n <= m:
+        idx = torch.floor(torch.arange(m) * n / m).long()
+        mask = torch.zeros(n, m, dtype=torch.bool, device=device)
+        mask[idx, torch.arange(m)] = True
+        return mask
+    else:
+        return stretched_eye(m, n).T
+
+
 def check_masks_type(masks: list[Tensor], dtype) -> bool:
     return all(mask.dtype == dtype for mask in masks)
 
@@ -49,6 +76,15 @@ def save(model: nn.Module, path) -> None:
             ckpt[k] = v.state_dict()
 
     torch.save(ckpt, path)
+
+
+def load(model: nn.Module, path: str) -> nn.Module:
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
+
+    for k, v in model.named_children():
+        v.load_state_dict(ckpt[k])
+
+    return model
 
 
 def get_saveable_state_dict(model: nn.Module) -> dict:

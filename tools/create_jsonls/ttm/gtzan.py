@@ -3,54 +3,48 @@ from pathlib import Path
 
 import h5py
 
-from audioflow.utils.text import read_lines
 from audioflow.utils.json import write_jsonl
+from audioflow.utils.text import read_lines
 
 
 def create_jsonl(args):
 
     # Arguments
-    captions_dir = Path(args.captions_dir)
-    latents_dir = Path(args.latents_dir)
+    txt_dir = Path(args.input_texts_dir)
+    tgt_dir = Path(args.target_latents_dir)
     out_path = Path(args.out_path)
 
-    latent_paths = sorted(latents_dir.glob("*.h5"))
+    tgt_paths = sorted(tgt_dir.glob("*.h5"))
     metas = []
 
-    for n, latent_path in enumerate(latent_paths):
+    for n, tgt_path in enumerate(tgt_paths):
 
         if n % 100 == 0: 
-            print(f"{n}/{len(latent_paths)}")
+            print(f"{n}/{len(tgt_paths)}")
 
-        txt_path = captions_dir / (latent_path.stem + ".txt")
-        captions = read_lines(txt_path)
+        name = tgt_path.stem
 
-        hf = h5py.File(latent_path, "r")
+        # Text
+        txt_path = txt_dir / (name + ".txt")
+        caption = read_lines(txt_path)[0]
+
+        # Target latent meta
+        tgt_meta = read_hdf5_attrs(tgt_path)
 
         meta = {
             "input": {
-                "text": {
-                    "music": {
-                        "caption": captions[0],
-                        "genre": "",
-                        "bpm": "",
-                        "instruments": "",
-                        "mood": "",
-                        "mixing": ""
-                    }
-                }
+                "text": f"<music>{caption}</music>",
             },
             "target": {
                 "audio": {
-                    "path": str(latent_path),
-                    "type": hf.attrs["type"],
-                    "fps": hf.attrs["fps"],
-                    "duration": hf.attrs["duration"]
+                    "path": tgt_meta["path"],
+                    "type": tgt_meta["type"],
+                    "fps": tgt_meta["fps"],
+                    "duration": tgt_meta["duration"]
                 }
             }
         }
 
-        hf.close()
         metas.append(meta)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -58,11 +52,21 @@ def create_jsonl(args):
     print(f"Write out to {out_path}")
 
 
+def read_hdf5_attrs(path) -> dict:
+    with h5py.File(path, "r") as hf:
+        return {
+            "path": str(path),
+            "type": hf.attrs["type"],
+            "fps": hf.attrs["fps"],
+            "duration": hf.attrs["duration"]
+        }
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--captions_dir", type=str)
-    parser.add_argument("--latents_dir", type=str)
+    parser.add_argument("--input_texts_dir", type=str)
+    parser.add_argument("--target_latents_dir", type=str)
     parser.add_argument("--out_path", type=str)
     args = parser.parse_args()
 

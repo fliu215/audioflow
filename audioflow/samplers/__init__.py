@@ -2,7 +2,8 @@ from torch.utils.data import Sampler
 
 
 def get_batch_sampler(configs: dict) -> Sampler:
-    r"""Get sampler."""
+    r"""Get sampler.
+    """
     name = configs["sampler"]["name"]
     batch_size = configs["train"]["batch_size_per_device"]
 

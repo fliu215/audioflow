@@ -5,9 +5,9 @@ from einops import rearrange
 from torch import Tensor
 import torch
 
-from audioflow.nn.attention import Block
-from audioflow.nn.embedders import TimestepEmbedder
-from audioflow.nn.rope import RoPE
+from audioflow.layers.attention import Block
+from audioflow.layers.embedders import TimestepEmbedder
+from audioflow.layers.rope import RoPE
 
 
 class Transformer(nn.Module):
@@ -50,7 +50,6 @@ class Transformer(nn.Module):
         Outputs:
             out: (b, t, d)
         """
-
         c = controls["c"]  # (b, 1, d) | (b, t, d)
         seq = controls["seq"]  # (b, l, d)
         self_attn_mask = controls["self_attn_mask"]  # (b, t, d)

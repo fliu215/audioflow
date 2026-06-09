@@ -1,10 +1,10 @@
 import torch.nn as nn
 
 
-def load_encoder(name: str) -> nn.Module:
+def load_vae(name: str) -> nn.Module:
     
     if name == "levo_vae":
-        from audioflow.vaes.audio.levo import LevoVAE
+        from .levo import LevoVAE
         return LevoVAE()
 
     elif name == "architts_vae":
@@ -12,7 +12,7 @@ def load_encoder(name: str) -> nn.Module:
         return ArchiTTSVAE()
 
     elif name == "mmaudio_vae":
-        from audioflow.vaes.audio.mmaudio import MMAudioVAE
+        from .mmaudio import MMAudioVAE
         return MMAudioVAE()
 
     else:

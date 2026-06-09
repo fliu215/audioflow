@@ -1,5 +1,21 @@
 from xml.etree.ElementTree import Element, tostring
+from xml.etree import ElementTree
 import re
+
+
+def parse_xml(xml: str) -> str:
+    if xml == "":
+        return ""
+    else:
+        try:
+            return ElementTree.fromstring(xml).text or ""
+        except:
+            return ""
+
+
+def batch_parse_xml(texts: list[str]) -> list[str]:
+    return [parse_xml(x) for x in texts]
+
 
 def dict_to_xml(data_dict: dict) -> list[str]:
     """Convert dict to XML. E.g.:

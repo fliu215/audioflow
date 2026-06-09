@@ -4,7 +4,8 @@ from audioflow.utils.json import read_jsonl
 
 
 class BatchJsonlSampler:
-    r"""Jsonl Sampler."""
+    r"""Jsonl Sampler.
+    """
     def __init__(self, jsonl_paths: list[str], weights: list[float], batch_size: int) -> None:
         self.jsonl_paths = jsonl_paths
         self.weights = weights

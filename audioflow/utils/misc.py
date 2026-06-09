@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import librosa
+from xml.etree import ElementTree
 
 
 def augment_path(path: Path, i: int) -> Path:
@@ -29,3 +30,11 @@ def logmel(audio: np.ndarray, sr: float) -> np.ndarray:
         hop_length=round(sr * 0.01), 
         n_mels=128
     )).T  # (t, f)
+
+
+def check_prompt(text: str) -> bool:
+    try:
+        ElementTree.fromstring(text)
+        return True
+    except ElementTree.ParseError:
+        return False

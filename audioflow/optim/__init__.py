@@ -2,6 +2,8 @@ from torch import Tensor
 from torch.optim import Optimizer, AdamW
 from torch.optim.lr_scheduler import LambdaLR
 
+from .schedulers import LinearWarmUp
+
 
 def get_optimizer_and_scheduler(
     configs: dict, 
@@ -9,9 +11,9 @@ def get_optimizer_and_scheduler(
 ) -> tuple[Optimizer, LambdaLR | None]:
     r"""Get optimizer and scheduler."""
 
-    lr = float(configs["train"]["lr"])
-    warm_up_steps = configs["train"]["warm_up_steps"]
-    optimizer_name = configs["train"]["optimizer"]
+    optimizer_name = configs["name"]
+    lr = float(configs["lr"])
+    warm_up_steps = configs["warmup_steps"]
 
     if optimizer_name == "AdamW":
         optimizer = AdamW(params=params, lr=lr)
@@ -23,16 +25,3 @@ def get_optimizer_and_scheduler(
         scheduler = None
 
     return optimizer, scheduler
-
-
-class LinearWarmUp:
-    r"""Linear learning rate warm up scheduler."""
-
-    def __init__(self, warm_up_steps: int) -> None:
-        self.warm_up_steps = warm_up_steps
-
-    def __call__(self, step: int) -> float:
-        if step <= self.warm_up_steps:
-            return step / self.warm_up_steps
-        else:
-            return 1.

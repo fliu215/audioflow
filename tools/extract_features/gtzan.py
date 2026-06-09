@@ -2,9 +2,9 @@ import argparse
 from pathlib import Path
 
 from audioflow.encoders.audio import load_encoder
-from audioflow.utils.audio import load_stereo, extract_and_save_audio_features
-from audioflow.utils.text import write_lines
+from audioflow.utils.audio import extract_and_save_audio_features, load_stereo
 from audioflow.utils.misc import augment_path
+from audioflow.utils.text import write_lines
 
 
 def extract_audio_features(args) -> None:
@@ -23,11 +23,11 @@ def extract_audio_features(args) -> None:
 
     audios_dir = root / "genres"
     meta_dict = load_meta(audios_dir, split)
-    n_audios = len(meta_dict["path"])
+    n_data = len(meta_dict["path"])
     
-    for n in range(n_audios):
+    for n in range(n_data):
 
-        print(f"{n}/{n_audios}")
+        print(f"{n}/{n_data}")
         path = meta_dict["path"][n]
         audio = load_stereo(path, encoder.sr)  # (2, l)
         
@@ -54,11 +54,11 @@ def extract_texts(args) -> None:
 
     audios_dir = root / "genres"
     meta_dict = load_meta(audios_dir, split)
-    n_audios = len(meta_dict["path"])
+    n_data = len(meta_dict["path"])
     
-    for n in range(n_audios):
+    for n in range(n_data):
 
-        print(f"{n}/{n_audios}")
+        print(f"{n}/{n_data}")
         label = meta_dict["label"][n]
         path = meta_dict["path"][n]
         

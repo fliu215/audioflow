@@ -13,5 +13,9 @@ def get_adapter(configs: dict) -> nn.Module:
         from .tta import TTAAdapter
         return TTAAdapter(**configs)
 
+    elif name == "V2AAdapter":
+        from .v2a import V2AAdapter
+        return V2AAdapter(**configs)
+
     else:
         raise ValueError(name)
