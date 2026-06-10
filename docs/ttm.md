@@ -5,7 +5,7 @@
 Download the GTZAN dataset (1.3 GB, 8 hours).
 
 ```bash
-bash ./scripts/download_datasets/download_ljspeech.sh
+bash ./scripts/download_datasets/download_gtzan.sh
 ```
 
 The dataset structure after extraction is as follows:
