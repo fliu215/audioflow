@@ -64,7 +64,7 @@ gtzan (1.3 GB)
 ```bash
 ENCODER="levo_vae"
 for SPLIT in "train" "test"; do
-    CUDA_VISIBLE_DEVICES=0 python -m tools.extract_features.gtzan audio \
+    CUDA_VISIBLE_DEVICES=0 python -m scripts.extract_features.gtzan audio \
         --dataset_root="./datasets/gtzan" \
         --split=${SPLIT} \
         --encoder_name=${ENCODER} \
@@ -76,7 +76,7 @@ done
 
 ```bash
 for SPLIT in "train" "test"; do
-    python -m tools.create_jsonls.ttm.gtzan \
+    python -m scripts.create_jsonls.ttm.gtzan \
         --input_texts_dir="./features/gtzan/${SPLIT}/text/raw" \
         --target_latents_dir="./features/gtzan/${SPLIT}/audio/levo_vae" \
         --out_path="./jsonls/ttm/${SPLIT}/gtzan.jsonl"
@@ -85,12 +85,12 @@ done
 
 ### 1.4 Train
 ```python
-CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/ttm/ttm_gtzan.yaml"
+CUDA_VISIBLE_DEVICES=0 python -m scripts.train --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
 ### 1.5 Sample
 ```python
-CUDA_VISIBLE_DEVICES=0 python sample.py \
+CUDA_VISIBLE_DEVICES=0 python -m scripts.sample \
     --config="./configs/ttm/ttm_gtzan.yaml" \
     --ckpt_path="checkpoints/train/ttm_gtzan/step=200000_ema.pth" \
     --prompt="<music>text to music</music>" \
