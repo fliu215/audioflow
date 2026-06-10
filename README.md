@@ -24,9 +24,8 @@ The supported tasks include:
 git clone https://github.com/qiuqiangkong/audioflow
 cd audioflow
 
-# # Install Python environment
-uv sync
-source .venv/bin/activate
+uv sync  # Install packages
+source .venv/bin/activate  # Activate env
 ```
 
 ## 1. Training a text to music system
