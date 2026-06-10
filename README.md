@@ -25,13 +25,9 @@ git clone https://github.com/qiuqiangkong/audioflow
 cd audioflow
 
 # # Install Python environment
-# conda create --name audioflow python=3.10
+uv sync
 
-# # Activate environment
-# conda activate audioflow
-
-# # Install Python packages dependencies
-# bash env.sh
+source .venv/bin/activate
 ```
 
 ## 1. Training a text to music system
