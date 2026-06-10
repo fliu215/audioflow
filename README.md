@@ -26,7 +26,6 @@ cd audioflow
 
 # # Install Python environment
 uv sync
-
 source .venv/bin/activate
 ```
 
