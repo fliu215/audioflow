@@ -24,14 +24,14 @@ The supported tasks include:
 git clone https://github.com/qiuqiangkong/audioflow
 cd audioflow
 
-# Install Python environment
-conda create --name audioflow python=3.10
+# # Install Python environment
+# conda create --name audioflow python=3.10
 
-# Activate environment
-conda activate audioflow
+# # Activate environment
+# conda activate audioflow
 
-# Install Python packages dependencies
-bash env.sh
+# # Install Python packages dependencies
+# bash env.sh
 ```
 
 ## 1. Training a text to music system
