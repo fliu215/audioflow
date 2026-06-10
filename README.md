@@ -31,7 +31,7 @@ uv sync
 source .venv/bin/activate
 ```
 
-## 1. Training a text to music system
+## 1. Train a text to music system
 
 See [docs](docs) for more examples.
 
@@ -89,7 +89,7 @@ done
 CUDA_VISIBLE_DEVICES=0 python -m scripts.train --config="./configs/ttm/ttm_gtzan.yaml"
 ```
 
-### 1.5 Sample
+### 2. Sample
 ```python
 CUDA_VISIBLE_DEVICES=0 python -m scripts.sample \
     --config="./configs/ttm/ttm_gtzan.yaml" \
