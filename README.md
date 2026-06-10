@@ -24,8 +24,11 @@ The supported tasks include:
 git clone https://github.com/qiuqiangkong/audioflow
 cd audioflow
 
-uv sync  # Install packages
-source .venv/bin/activate  # Activate env
+# Install packages
+uv sync
+
+# Activate env
+source .venv/bin/activate
 ```
 
 ## 1. Training a text to music system
