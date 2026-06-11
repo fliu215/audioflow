@@ -63,6 +63,7 @@ gtzan (1.3 GB)
 ### 1.2 Pre-extract VAE latents
 
 ```bash
+# Extract audio latent
 ENCODER="levo_vae"
 for SPLIT in "train" "test"; do
     CUDA_VISIBLE_DEVICES=0 python -m scripts.extract_features.gtzan audio \
@@ -71,6 +72,15 @@ for SPLIT in "train" "test"; do
         --encoder_name=${ENCODER} \
         --out_dir="./features/gtzan/${SPLIT}/audio/${ENCODER}"
 done
+
+# Extract texts
+for SPLIT in "train" "test"; do
+    python -m scripts.extract_features.gtzan text \
+        --dataset_root="./datasets/gtzan" \
+        --split=${SPLIT} \
+        --out_dir="./features/gtzan/${SPLIT}/text/raw"
+done
+```
 ```
 
 ### 1.3 Prepare JSONL files
