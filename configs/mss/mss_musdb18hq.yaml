@@ -2,17 +2,17 @@
 clip_duration: 10.
 
 train_jsonls:
-  - path: "./jsonls/mss/train/musdb18hq.jsonl" 
+  - path: "./jsonls/mss/train/aatc.jsonl" 
     weight: 1.0
-  - path: "./jsonls/mss/train/musdb18hq.jsonl"
+  - path: "./jsonls/mss/train/aatc.jsonl"
     weight: 1.0
 
 validate_train_jsonl:
-    path: "./jsonls/mss/train/musdb18hq.jsonl"
+    path: "./jsonls/mss/train/aatc.jsonl"
     num: 10
 
 validate_test_jsonl:
-    path: "./jsonls/mss/test/musdb18hq.jsonl"
+    path: "./jsonls/mss/valid/aatc.jsonl"
     num: 10
 
 sampler: 
@@ -22,7 +22,7 @@ dataset:
     name: MSSDataset
 
 validate:
-    vae: levo_vae
+    vae: mmaudio_vae
 
 
 # latent:
@@ -31,7 +31,7 @@ validate:
 
 base:
     name: Transformer
-    in_dim: &in_dim 64
+    in_dim: &in_dim 20
     dim: &dim 768
     num_layers: 12
     num_heads: 24
