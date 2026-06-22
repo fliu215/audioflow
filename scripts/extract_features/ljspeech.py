@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import pandas as pd
 
 from audioflow.encoders.audio import load_encoder
 from audioflow.utils.audio import extract_and_save_audio_features, load_stereo
@@ -20,15 +21,16 @@ def extract_audio_features(args) -> None:
 
     # Load audio encoder
     encoder = load_encoder(encoder_name).to(device)
+    # print(next(self.vae.model.parameters()).device)
 
-    audios_dir = root / "genres"
-    meta_dict = load_meta(audios_dir, split)
-    n_data = len(meta_dict["path"])
-    
+    split_path = root / f"{split}.txt"
+    split_names = load_names(split_path)
+    n_data = len(split_names)
+
     for n in range(n_data):
 
         print(f"{n}/{n_data}")
-        path = meta_dict["path"][n]
+        path = root / "wavs" / f"{split_names[n]}.wav"
         audio = load_stereo(path, encoder.sr)  # (2, l)
         
         chunk_samples = int(chunk_duration * encoder.sr)
@@ -52,45 +54,44 @@ def extract_texts(args) -> None:
     aug_repeats = args.augmentation_repeats
     out_dir = Path(args.out_dir)
 
-    audios_dir = root / "genres"
-    meta_dict = load_meta(audios_dir, split)
-    n_data = len(meta_dict["path"])
+    split_path = root / f"{split}.txt"
+    meta_path = root / "metadata.csv"
+    meta_dict = load_meta(split_path, meta_path)
+    n_data = len(meta_dict["name"])
     
     for n in range(n_data):
 
         print(f"{n}/{n_data}")
-        label = meta_dict["label"][n]
-        path = meta_dict["path"][n]
+        name = meta_dict["name"][n]
+        text = meta_dict["text"][n]
         
-        out_path = out_dir / f"{path.stem}.txt"
+        out_path = out_dir / f"{name}.txt"
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         for i in range(aug_repeats):
             aug_path = augment_path(out_path, i)
-            write_lines(aug_path, [label])
+            write_lines(aug_path, [text])
             print(f"Write out to {aug_path}")
 
 
-def load_meta(audios_dir: Path, split: str) -> dict:
-    r"""Get train and test split paths.
-    """
-    labels = sorted(p.name for p in audios_dir.iterdir())
-    meta_dict = {"label": [], "path": []}
+def load_names(split_path: str) -> list[str]:
+    df = pd.read_csv(split_path, header=None)
+    names = df[0].values
+    return names
 
-    for label in labels:
-        class_paths = sorted((audios_dir / label).glob("*.au"))
 
-        if split == "train":
-            paths = class_paths[0 : 90]
+def load_meta(split_path: str, meta_path: str) -> dict:
+    split_names = load_names(split_path)
 
-        elif split == "test":
-            paths = class_paths[90 :]
+    df = pd.read_csv(meta_path, sep="|", header=None)
+    meta_dict = {"name": [], "text": []}
 
-        else:
-            raise ValueError(split)
-
-        meta_dict["label"].extend([label] * len(paths))
-        meta_dict["path"].extend(paths)
+    for n in range(len(df)):
+        name = df[0][n]
+        text = df[1][n]
+        if name in split_names:
+            meta_dict["name"].append(name)
+            meta_dict["text"].append(text)
 
     return meta_dict
 

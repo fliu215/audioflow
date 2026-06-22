@@ -10,7 +10,7 @@ from audioflow.utils.text import read_lines
 def create_jsonl(args):
 
     # Arguments
-    txt_dir = Path(args.input_texts_dir)
+    in_dir = Path(args.input_features_dir)
     tgt_dir = Path(args.target_latents_dir)
     out_path = Path(args.out_path)
 
@@ -22,16 +22,20 @@ def create_jsonl(args):
         if n % 100 == 0: 
             print(f"{n}/{len(tgt_paths)}")
 
-        # Text
-        txt_path = txt_dir / f"{tgt_path.stem}.txt"
-        caption = read_lines(txt_path)[0]
-
-        # Target latent meta
+        # Meta
+        in_path = in_dir / tgt_path.name
+        in_meta = read_hdf5_attrs(in_path)
         tgt_meta = read_hdf5_attrs(tgt_path)
-
+        
         meta = {
             "input": {
-                "text": f"<music>{caption}</music>",
+                "text": f"<music></music>",
+                "audio": {
+                    "path": in_meta["path"],
+                    "type": in_meta["type"],
+                    "fps": in_meta["fps"],
+                    "duration": in_meta["duration"]
+                }
             },
             "target": {
                 "audio": {
@@ -63,7 +67,7 @@ def read_hdf5_attrs(path) -> dict:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_texts_dir", type=str)
+    parser.add_argument("--input_features_dir", type=str)
     parser.add_argument("--target_latents_dir", type=str)
     parser.add_argument("--out_path", type=str)
     args = parser.parse_args()

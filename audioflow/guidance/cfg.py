@@ -17,8 +17,8 @@ def cfg_drop(data: dict, p_full=0.1, p_partial=0.1) -> dict:
         # Full drop
         if rand < p_full:
             update(data, "prompt", n, "")
-            update(data, "input_feature", n, 0.)
-            update(data, "input_mask", n, False)
+            # update(data, "input_feature", n, 0.)
+            # update(data, "input_mask", n, False)
             
         # Partial drop
         elif p_full <= rand < p_full + p_partial:

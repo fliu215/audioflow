@@ -24,14 +24,14 @@ def create_jsonl(args):
 
         # Text
         txt_path = txt_dir / f"{tgt_path.stem}.txt"
-        caption = read_lines(txt_path)[0]
+        text = read_lines(txt_path)[0]
 
         # Target latent meta
         tgt_meta = read_hdf5_attrs(tgt_path)
 
         meta = {
             "input": {
-                "text": f"<music>{caption}</music>",
+                "text": f"<speech>{text}</speech>",
             },
             "target": {
                 "audio": {

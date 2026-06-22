@@ -22,10 +22,8 @@ def create_jsonl(args):
         if n % 100 == 0: 
             print(f"{n}/{len(tgt_paths)}")
 
-        name = tgt_path.stem
-
         # Text
-        txt_path = txt_dir / (name + ".txt")
+        txt_path = txt_dir / f"{tgt_path.stem}.txt"
         captions = read_lines(txt_path)
         caption = captions[0] if len(captions) > 0 else ""
 
@@ -49,7 +47,7 @@ def create_jsonl(args):
         metas.append(meta)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    write_jsonl(out_path, metas)
+    write_jsonl(metas, out_path)
     print(f"Write out to {out_path}")
 
 

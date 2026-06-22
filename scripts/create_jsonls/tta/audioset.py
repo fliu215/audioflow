@@ -24,14 +24,19 @@ def create_jsonl(args):
 
         # Text
         txt_path = txt_dir / f"{tgt_path.stem}.txt"
-        caption = read_lines(txt_path)[0]
+
+        if not txt_path.is_file():
+            continue
+
+        captions = read_lines(txt_path)
+        caption = captions[0] if len(captions) > 0 else ""
 
         # Target latent meta
         tgt_meta = read_hdf5_attrs(tgt_path)
 
         meta = {
             "input": {
-                "text": f"<music>{caption}</music>",
+                "text": f"<audio>{caption}</audio>",
             },
             "target": {
                 "audio": {
@@ -45,6 +50,7 @@ def create_jsonl(args):
 
         metas.append(meta)
 
+    print(f"Total: {len(metas)}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     write_jsonl(metas, out_path)
     print(f"Write out to {out_path}")

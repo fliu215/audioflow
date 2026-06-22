@@ -47,16 +47,19 @@ class Validator:
             metas = read_jsonl(jsonl_path)
             indices = np.linspace(0, len(metas) - 1, n_valid, dtype=int)
             metas = [metas[i] for i in indices]
-
+            
             for i in range(len(metas)):
 
                 # ------ 1. Data preparation ------
                 # 1.1 Get Data
-                data = self.dataset[metas[i]]
+                meta = metas[i]
+                meta["start_time"] = max(meta["target"]["audio"]["duration"] - self.dataset.clip_dur, 0.) / 2
+                data = self.dataset[meta]
                 data = default_collate([data])  # list to batch
                 data = trim_target_latent(data)  # Cut silense
                 data = to_device(data, self.device)
                 
+                x_in = data["input_feature"] if meta["input"].get("audio") else None
                 x_real = data["target_latent"]  # (1, t, d)
                 noise = torch.randn_like(x_real)  # (1, l, d)
                 
@@ -64,49 +67,56 @@ class Validator:
                     
                 name = f"{split},idx={i},prompt="
                 name += re.sub(r"</\w+>", "", data["prompt"][0])
+                name = name[0 : 150]
 
                 if self.decoder:
                     # Decode audio from VAE latents
+                    audio_in = self.decoder.decode(x_in).cpu().numpy()[0] if x_in is not None else None  # (c, l)
                     audio_gen = self.decoder.decode(x_gen).cpu().numpy()[0]  # (c, l)
                     audio_gt = self.decoder.decode(x_real).cpu().numpy()[0]  # (c, l)
                     
                     # ------ 3. Plot and Visualization ------
+                    logmel_in = logmel(audio_in, self.decoder.sr) if audio_in is not None else None
                     logmel_gen = logmel(audio_gen, self.decoder.sr)
                     logmel_gt = logmel(audio_gt, self.decoder.sr)
 
                     fig, axs = plt.subplots(3, 1, figsize=(10, 10))
-                    vmin, vmax = -10, 5
-
-                    axs[1].matshow(logmel_gen.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
-                    axs[2].matshow(logmel_gt.T, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
+                    self.plot_logmel(axs[0], logmel_in.T)
+                    self.plot_logmel(axs[1], logmel_gen.T)
+                    self.plot_logmel(axs[2], logmel_gt.T)
                     axs[0].set_title("Input")
                     axs[1].set_title("Generation")
                     axs[2].set_title("Ground truth")
                     axs[2].xaxis.tick_bottom()
 
-                    out_path = out_dir / (name + ".png")
+                    out_path = out_dir / f"{name}.png"
                     plt.savefig(out_path)
                     print(f"Write out to {out_path}")
 
-                    out_path = out_dir / (name + ",gen.wav")
-                    self._write_audio(audio_gen, out_path)
-
-                    out_path = out_dir / (name + ",gt.wav")
-                    self._write_audio(audio_gt, out_path)
+                    self.write_audio(audio_in, path=out_dir / f"{name},in.wav")
+                    self.write_audio(audio_gen, path=out_dir / f"{name},gen.wav")
+                    self.write_audio(audio_gt, path=out_dir / f"{name},gt.wav")
                     
                 else:
-                    out_path = out_dir / (name + ",gen.h5")
-                    self._write_hdf5(x_gen.cpu().numpy()[0], decoder_name, out_path)
-                    
-                    out_path = out_dir / (name + ",gt.h5")
-                    self._write_hdf5(x_real.cpu().numpy()[0], decoder_name, out_path)
+                    self.write_hdf5(x_in.cpu().numpy()[0], decoder_name, path=out_dir / f"{name},in.h5")
+                    self.write_hdf5(x_gen.cpu().numpy()[0], decoder_name, path=out_dir / f"{name},gen.h5")
+                    self.write_hdf5(x_real.cpu().numpy()[0], decoder_name, path=out_dir / f"{name},gt.h5")
 
-    def _write_audio(self, audio: np.ndarray, path) -> None:
-        soundfile.write(file=path, data=audio.T, samplerate=self.decoder.sr)
-        print(f"Write out to {path}")
+    def plot_logmel(self, ax, x):
+        vmin, vmax = -10, 5
+        if x is not None:
+            ax.matshow(x, origin='lower', aspect='auto', cmap='jet', vmin=vmin, vmax=vmax)
 
-    def _write_hdf5(self, data, name, path) -> None:
-        with h5py.File(path, 'w') as hf:
-            hf.create_dataset("data", data=data, dtype=np.float32)
-            hf.attrs.create_dataset("type", data=name)
-        print(f"Write out to {path}")
+    def write_audio(self, audio: np.ndarray, path: str) -> None:
+        if audio is not None:
+            soundfile.write(file=path, data=audio.T, samplerate=self.decoder.sr)
+            print(f"Write out to {path}")
+
+    def write_hdf5(self, data: np.ndarray, name: str, path: str) -> None:
+        if data is not None:
+            with h5py.File(path, 'w') as hf:
+                hf.create_dataset("data", data=data, dtype=np.float32)
+                hf.attrs.create_dataset("type", data=name)
+            print(f"Write out to {path}")
+
+    

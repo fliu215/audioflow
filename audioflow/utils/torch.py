@@ -50,7 +50,7 @@ def mean(x: Tensor, mask: Tensor) -> torch.float:
     return out.mean()
 
 
-def stretched_eye(n: int, m: int, device):
+def stretched_eye(n: int, m: int, device) -> Tensor:
     if n == m:
         return torch.eye(n, dtype=torch.bool, device=device)
     if n <= m:
@@ -60,6 +60,11 @@ def stretched_eye(n: int, m: int, device):
         return mask
     else:
         return stretched_eye(m, n).T
+
+
+def ones(n: int, m: int, device) -> Tensor:
+    return torch.ones((n, m), dtype=bool, device=device)
+
 
 
 def check_masks_type(masks: list[Tensor], dtype) -> bool:

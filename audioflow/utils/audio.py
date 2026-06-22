@@ -27,28 +27,28 @@ def load_stereo(path: str, sr: int) -> np.ndarray:
             return np.repeat(np.mean(audio, axis=0, keepdims=True), repeats=2, axis=0)  # (2, l)
 
 
-def get_latent_length(path) -> int:
-    with h5py.File(path, 'r') as hf:
-        return hf["data"].shape[0]
+# def get_latent_length(path) -> int:
+#     with h5py.File(path, 'r') as hf:
+#         return hf["data"].shape[0]
 
 
-def sample_start_frame(total_frames: int, clip_frames: int) -> int:
-    r"""Random sample a frame index."""
-    max_start = max(total_frames - clip_frames, 0)
-    return random.randint(0, max_start)
+# def sample_start_frame(total_frames: int, clip_frames: int) -> int:
+#     r"""Random sample a frame index."""
+#     max_start = max(total_frames - clip_frames, 0)
+#     return random.randint(0, max_start)
 
 
-def load_latent(path, start: int, clip_frames: int) -> tuple[np.ndarray, np.ndarray]:
-    r"""Load latent from hdf5."""
-    with h5py.File(path, 'r') as hf:
-        x = hf["data"][start : start + clip_frames, :]  # (l, d)
-        length = x.shape[0]
+# def load_latent(path, start: int, clip_frames: int) -> tuple[np.ndarray, np.ndarray]:
+#     r"""Load latent from hdf5."""
+#     with h5py.File(path, 'r') as hf:
+#         x = hf["data"][start : start + clip_frames, :]  # (l, d)
+#         length = x.shape[0]
 
-        x = librosa.util.fix_length(data=x, size=clip_frames, axis=0, constant_values=0.)  # (l, d)
-        mask = np.zeros(clip_frames, dtype=bool)  # (l,)
-        mask[:length] = True
+#         x = librosa.util.fix_length(data=x, size=clip_frames, axis=0, constant_values=0.)  # (l, d)
+#         mask = np.zeros(clip_frames, dtype=bool)  # (l,)
+#         mask[:length] = True
 
-    return x, mask
+#     return x, mask
 
 
 def extract_and_save_audio_features(
@@ -97,7 +97,7 @@ def extract_features_in_chunks(
     model: nn.Module, 
     audio: np.ndarray, 
     chunk_samples: int,
-    min_tail_samples: int = 10000
+    min_tail_samples: int = 1000
 ) -> np.array:
     r"""Convert audio into features.
 
@@ -122,6 +122,7 @@ def extract_features_in_chunks(
     while i <= audio.shape[-1] - min_tail_samples:
         
         x = torch.from_numpy(audio[None, :, i : i + chunk_samples]).to(device)  # (b, c, l)
+        print(x.shape)
 
         with torch.no_grad():
             model.eval()

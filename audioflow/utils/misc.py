@@ -3,6 +3,9 @@ from __future__ import annotations
 import numpy as np
 import librosa
 from xml.etree import ElementTree
+import random
+import math
+import h5py
 
 
 def augment_path(path: Path, i: int) -> Path:
@@ -38,3 +41,65 @@ def check_prompt(text: str) -> bool:
         return True
     except ElementTree.ParseError:
         return False
+
+
+def get_data_length(path: str) -> int:
+    with h5py.File(path, 'r') as hf:
+        return hf["data"].shape[0]
+
+
+def load_data(
+    path: str, 
+    start_frame: int, 
+    n_frames: int
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Load data from hdf5.
+
+    l: n_frames
+    
+    Returns:
+        x: (l, ...)
+        mask (bool): (l,)
+    """
+    with h5py.File(path, 'r') as hf:
+        x = hf["data"][start_frame : start_frame + n_frames, ...]  # (l, ...)
+
+    mask = np.zeros(n_frames, dtype=bool)  # (l,)
+    mask[:x.shape[0]] = True  # (l,)
+    x = librosa.util.fix_length(data=x, size=n_frames, axis=0, constant_values=0.)  # (l, ...)
+        
+    return x, mask
+
+
+def load_data_by_time(
+    path: str, 
+    start_time: float, 
+    clip_duration: float, 
+    fps: float
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Load data from hdf5.
+
+    l: n_frames
+
+    Returns:
+        x: (l, ...)
+        mask (bool): (l,)
+    """
+    return load_data(
+        path=path, 
+        start_frame=int(start_time * fps), 
+        n_frames=int(clip_duration * fps)
+    )
+
+
+def sample_start_time(total_duration: float, clip_duration: float) -> float:
+    span = max(total_duration - clip_duration, 0.)
+    return random.uniform(0., span)
+
+
+def quantize_time(t: float, fps: float) -> float:
+    return int(t * fps) / fps
+
+
+def sample_grid_start_time(total_duration: float, clip_duration: float, fps: float) -> float:
+    return quantize_time(sample_start_time(total_duration, clip_duration), fps)
