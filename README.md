@@ -22,7 +22,7 @@ bash env.sh
 
 ### 1.1 Download datasets
 
-Download the officially provided dataset (10 hours):
+Download the officially provided [dataset](https://ccf-aatc.org.cn/) (10 hours):
 
 The dataset structure is as follows:
 
