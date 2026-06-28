@@ -131,3 +131,5 @@ The validation results of the baseline system are shown below.
 [1] Conditional flow matching: https://github.com/atong01/conditional-flow-matching
 
 [2] DiT: https://github.com/facebookresearch/DiT
+
+[3] Contributor: https://fliu215.github.io/homepage/
