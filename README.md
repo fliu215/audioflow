@@ -90,6 +90,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py --config="./configs/mss/mss_musdb18hq.yam
 ```
 
 ### 1.5 Sample
+The pretrained checkpoint can be downloaded from the GitHub Release page: [Download checkpoint](https://github.com/fliu215/audioflow/releases/download/ckpt-v1/step.1000000_ema.pth)
 ```python
 # Single
 CUDA_VISIBLE_DEVICES=0 python sample.py \
