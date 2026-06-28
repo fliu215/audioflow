@@ -119,7 +119,6 @@ CUDA_VISIBLE_DEVICES=0 python batch_sample_chunked.py \
 python evaluate_mss_metrics.py --compute_fad --compute_visqol --compute_input_metrics
 ```
 
-## 2. Results
 The validation results of the baseline system are shown below.
 
 | Method | SI-SNR (dB) ↑ | LSD ↓ | FAD ↓ | ViSQOL ↑ |
